@@ -1,5 +1,288 @@
 <!DOCTYPE html>
-<html>
-<head><title>CS Dashboard</title></head>
-<body><h1>준비 중입니다</h1></body>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>CS 컨트롤 데스크</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#14171F; --paper:#F6F4EF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
+    --amber:#E8A33D; --teal:#2F8F82; --coral:#D9614F; --card-radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:'Pretendard','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1200px;margin:0 auto;padding:32px 28px 60px;}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);
+    padding-bottom:20px;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--slate);margin:0 0 6px;}
+  h1{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:30px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .top-meta{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--slate);}
+  .top-meta strong{color:var(--ink);font-weight:600;}
+  .filters{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+  select{font-family:'Pretendard',sans-serif;font-size:13px;padding:9px 14px;border-radius:999px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:var(--card-radius);padding:18px 20px;}
+  .kpi .label{font-size:12px;color:var(--slate);margin-bottom:8px;}
+  .kpi .value{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:600;}
+  .charts{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px;}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:var(--card-radius);padding:20px 22px;}
+  .panel h3{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;margin:0 0 4px;}
+  .panel .sub{font-size:12px;color:var(--slate);margin:0 0 14px;}
+  .channel-bar{display:flex;height:34px;border-radius:8px;overflow:hidden;margin-bottom:10px;background:#f0f0ee;}
+  .channel-seg{display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:#fff;font-weight:600;}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--slate);flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .table-panel{margin-top:14px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;
+    text-transform:uppercase;color:var(--slate);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--line);}
+  tbody td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tbody tr:hover{background:rgba(20,23,31,0.02);}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
+  .b-완료{background:rgba(47,143,130,0.12);color:var(--teal);}
+  .b-대기{background:rgba(217,97,79,0.12);color:var(--coral);}
+  .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono',monospace;}
+  .content-cell{max-width:260px;color:var(--slate);font-size:12px;}
+  .foot-note{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--slate);font-family:'IBM Plex Mono',monospace;}
+  .empty-state{text-align:center;padding:80px 20px;color:var(--slate);}
+  @media (max-width:820px){.kpis{grid-template-columns:repeat(2,1fr);}.charts{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div id="pwGate" style="
+  position:fixed;inset:0;background:var(--paper);z-index:9999;
+  display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:36px 32px;width:320px;text-align:center;">
+    <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--slate);margin:0 0 8px;">CS Control Desk</p>
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:18px;margin:0 0 20px;">비밀번호를 입력하세요</h2>
+    <input id="pwInput" type="password" placeholder="비밀번호"
+      style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+    <button id="pwSubmit" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--ink);color:#fff;font-size:14px;cursor:pointer;">확인</button>
+    <p id="pwError" style="color:var(--coral);font-size:12px;margin-top:10px;display:none;">비밀번호가 올바르지 않아요.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="eyebrow">CS Control Desk · Live</p>
+      <h1>실시간 문의 현황</h1>
+    </div>
+    <div class="top-meta">
+      데이터 로드: <strong id="lastUpdated">-</strong><br>
+      총 <strong id="totalCount">0</strong>건 기준
+    </div>
+  </div>
+
+  <div class="filters">
+    <select id="fChannel"><option value="all">전체 채널</option></select>
+    <select id="fType"><option value="all">전체 문제유형</option></select>
+    <select id="fStatus"><option value="all">전체 상태</option></select>
+  </div>
+
+  <div id="loadError" style="display:none;" class="empty-state">
+    <p><strong>cs_data.json을 불러올 수 없어요.</strong></p>
+    <p>이 파일은 로컬 서버로 열어야 해요. 같은 폴더에서 터미널을 열고<br>
+    <code>python -m http.server 8000</code> 실행 후, 브라우저에서<br>
+    <code>http://localhost:8000/cs_dashboard_live.html</code> 로 접속해주세요.</p>
+  </div>
+
+  <div id="dashboardContent">
+    <div class="kpis">
+      <div class="kpi"><div class="label">총 문의</div><div class="value" id="kpiTotal">–</div></div>
+      <div class="kpi"><div class="label">미해결 (대기)</div><div class="value" id="kpiOpen">–</div></div>
+      <div class="kpi"><div class="label">완료율</div><div class="value" id="kpiRate">–</div></div>
+      <div class="kpi"><div class="label">최다 문제유형</div><div class="value" id="kpiTopType" style="font-size:18px;">–</div></div>
+    </div>
+
+    <div class="charts">
+      <div class="panel">
+        <h3>일별 문의량 추이</h3>
+        <p class="sub">문제유형별 스택 막대</p>
+        <canvas id="trendChart" height="150"></canvas>
+      </div>
+      <div class="panel">
+        <h3>채널 비중</h3>
+        <div class="channel-bar" id="channelBar"></div>
+        <div class="legend" id="channelLegend"></div>
+        <div style="height:14px"></div>
+        <h3>문제유형 분포</h3>
+        <canvas id="typeChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <div class="panel table-panel">
+      <h3>문의 목록</h3>
+      <p class="sub">필터를 적용하면 아래 목록도 함께 바뀝니다</p>
+      <table>
+        <thead>
+          <tr><th>날짜</th><th>채널</th><th>문제유형</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="foot-note">※ 이 데이터는 로컬 파일(cs_data.json)에서만 읽어오며 외부에 공개되지 않습니다.</p>
+</div>
+
+<script>
+let allData = [];
+let trendChart, typeChart;
+
+async function loadData() {
+  try {
+    const res = await fetch('./cs_data.json');
+    if (!res.ok) throw new Error('not found');
+    allData = await res.json();
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
+    document.getElementById('totalCount').textContent = allData.length;
+    initFilters();
+    render();
+  } catch (e) {
+    document.getElementById('loadError').style.display = 'block';
+    document.getElementById('dashboardContent').style.display = 'none';
+  }
+}
+
+function unique(arr, key) {
+  return [...new Set(arr.map(r => r[key]).filter(Boolean))];
+}
+
+function initFilters() {
+  const fill = (id, values) => {
+    const sel = document.getElementById(id);
+    values.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+  };
+  fill('fChannel', unique(allData, '채널'));
+  fill('fType', unique(allData, '문제유형'));
+  fill('fStatus', unique(allData, '처리상태'));
+  ['fChannel','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
+}
+
+function getFiltered() {
+  const fc = document.getElementById('fChannel').value;
+  const ft = document.getElementById('fType').value;
+  const fs = document.getElementById('fStatus').value;
+  return allData.filter(r =>
+    (fc === 'all' || r['채널'] === fc) &&
+    (ft === 'all' || r['문제유형'] === ft) &&
+    (fs === 'all' || r['처리상태'] === fs)
+  );
+}
+
+const palette = ['#E8A33D','#2F8F82','#D9614F','#5B6274','#8C6FE8','#4A90D9'];
+const channelColor = {};
+function colorFor(map, key) {
+  if (!map[key]) map[key] = palette[Object.keys(map).length % palette.length];
+  return map[key];
+}
+
+function render() {
+  const rows = getFiltered();
+
+  document.getElementById('kpiTotal').textContent = rows.length;
+  const openCount = rows.filter(r => r['처리상태'] !== '완료').length;
+  document.getElementById('kpiOpen').textContent = openCount;
+  const rate = rows.length ? Math.round((rows.filter(r => r['처리상태']==='완료').length/rows.length)*100) : 0;
+  document.getElementById('kpiRate').textContent = rate + '%';
+
+  const typeCount = {};
+  rows.forEach(r => typeCount[r['문제유형']] = (typeCount[r['문제유형']]||0)+1);
+  const topType = Object.entries(typeCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiTopType').textContent = topType ? topType[0] : '-';
+
+  // 채널 바
+  const chCount = {};
+  rows.forEach(r => chCount[r['채널']] = (chCount[r['채널']]||0)+1);
+  const total = rows.length || 1;
+  const bar = document.getElementById('channelBar');
+  bar.innerHTML = '';
+  Object.entries(chCount).forEach(([ch, cnt]) => {
+    const pct = Math.round((cnt/total)*100);
+    if (pct <= 0) return;
+    const seg = document.createElement('div');
+    seg.className = 'channel-seg';
+    seg.style.width = pct + '%';
+    seg.style.background = colorFor(channelColor, ch);
+    seg.textContent = pct + '%';
+    bar.appendChild(seg);
+  });
+  document.getElementById('channelLegend').innerHTML = Object.entries(chCount)
+    .map(([ch,cnt]) => `<span><span class="dot" style="background:${colorFor(channelColor,ch)}"></span>${ch} (${cnt})</span>`).join('');
+
+  // 일별 추이 (날짜별 x 문제유형 스택)
+  const dates = [...new Set(rows.map(r=>r['날짜']))].sort();
+  const types = unique(rows, '문제유형');
+  const trendDatasets = types.map((t,idx) => ({
+    label: t,
+    data: dates.map(d => rows.filter(r=>r['날짜']===d && r['문제유형']===t).length),
+    backgroundColor: palette[idx % palette.length],
+    borderRadius: 4
+  }));
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type:'bar',
+    data:{labels:dates, datasets:trendDatasets},
+    options:{responsive:true,
+      plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}},
+      scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'rgba(20,23,31,0.06)'}}}
+    }
+  });
+
+  // 문제유형 분포
+  if (typeChart) typeChart.destroy();
+  typeChart = new Chart(document.getElementById('typeChart'), {
+    type:'bar',
+    data:{labels:types, datasets:[{data:types.map(t=>typeCount[t]||0), backgroundColor:'#14171F', borderRadius:6, maxBarThickness:22}]},
+    options:{indexAxis:'y', plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(20,23,31,0.06)'}}, y:{grid:{display:false}}}}
+  });
+
+  // 테이블
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = rows.slice().reverse().slice(0,20).map(r => `
+    <tr>
+      <td class="chip">${r['날짜']||''}</td>
+      <td>${r['채널']||''}</td>
+      <td>${r['문제유형']||''}</td>
+      <td class="content-cell">${(r['고객문의']||'').slice(0,80)}</td>
+      <td class="content-cell">${(r['답변내용']||'').slice(0,80)}</td>
+      <td><span class="badge b-${r['처리상태']}">${r['처리상태']||''}</span></td>
+    </tr>
+  `).join('');
+}
+
+loadData();
+</script>
+
+<script>
+  const CORRECT_PW = "ejqlfoq3djr!";
+  function tryUnlock() {
+    const val = document.getElementById('pwInput').value;
+    if (val === CORRECT_PW) {
+      sessionStorage.setItem('cs_dashboard_unlocked', 'yes');
+      document.getElementById('pwGate').style.display = 'none';
+    } else {
+      document.getElementById('pwError').style.display = 'block';
+    }
+  }
+  document.getElementById('pwSubmit').addEventListener('click', tryUnlock);
+  document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+  if (sessionStorage.getItem('cs_dashboard_unlocked') === 'yes') {
+    document.getElementById('pwGate').style.display = 'none';
+  }
+</script>
+</body>
 </html>
