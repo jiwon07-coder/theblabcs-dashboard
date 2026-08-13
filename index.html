@@ -82,6 +82,7 @@
   </div>
 
   <div class="filters">
+    <select id="fWeek"><option value="all">전체 기간</option></select>
     <select id="fChannel"><option value="all">전체 채널</option></select>
     <select id="fType"><option value="all">전체 문제유형</option></select>
     <select id="fStatus"><option value="all">전체 상태</option></select>
@@ -172,6 +173,20 @@ function weekLabel(mondayStr) {
   return `${fmt(d)}~${fmt(end)}`;
 }
 
+function weekOfMonthLabel(mondayStr) {
+  const d = new Date(mondayStr);
+  const month = d.getMonth();
+  const year = d.getFullYear();
+  let first = new Date(year, month, 1);
+  while (first.getDay() !== 1) first.setDate(first.getDate() + 1);
+  const weekNum = Math.round((d - first) / (7 * 86400000)) + 1;
+  if (weekNum < 1) {
+    const prevMonth = new Date(year, month, 0);
+    return `${prevMonth.getMonth()+1}월 말주차 (${weekLabel(mondayStr)})`;
+  }
+  return `${month+1}월 ${weekNum}주차 (${weekLabel(mondayStr)})`;
+}
+
 function initFilters() {
   const fill = (id, values) => {
     const sel = document.getElementById(id);
@@ -180,17 +195,26 @@ function initFilters() {
       o.value = v; o.textContent = v; sel.appendChild(o);
     });
   };
+  const weekKeys = [...new Set(allData.map(r => getMonday(r['날짜'])))].sort();
+  const weekSel = document.getElementById('fWeek');
+  weekKeys.forEach(wk => {
+    const o = document.createElement('option');
+    o.value = wk; o.textContent = weekOfMonthLabel(wk);
+    weekSel.appendChild(o);
+  });
   fill('fChannel', unique(allData, '채널'));
   fill('fType', unique(allData, '문제유형'));
   fill('fStatus', unique(allData, '처리상태'));
-  ['fChannel','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  ['fWeek','fChannel','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
 }
 
 function getFiltered() {
+  const fw = document.getElementById('fWeek').value;
   const fc = document.getElementById('fChannel').value;
   const ft = document.getElementById('fType').value;
   const fs = document.getElementById('fStatus').value;
   return allData.filter(r =>
+    (fw === 'all' || getMonday(r['날짜']) === fw) &&
     (fc === 'all' || r['채널'] === fc) &&
     (ft === 'all' || r['문제유형'] === ft) &&
     (fs === 'all' || r['처리상태'] === fs)
