@@ -139,7 +139,7 @@ let trendChart, typeChart;
 
 async function loadData() {
   try {
-    const res = await fetch('./cs_data.json');
+    const res = await fetch('./cs_data.json?t=' + Date.now());
     if (!res.ok) throw new Error('not found');
     allData = await res.json();
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
