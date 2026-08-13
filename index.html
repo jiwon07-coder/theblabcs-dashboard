@@ -84,6 +84,7 @@
   <div class="filters">
     <select id="fWeek"><option value="all">전체 기간</option></select>
     <select id="fChannel"><option value="all">전체 채널</option></select>
+    <select id="fProduct"><option value="all">전체 제품</option></select>
     <select id="fType"><option value="all">전체 문제유형</option></select>
     <select id="fStatus"><option value="all">전체 상태</option></select>
   </div>
@@ -119,12 +120,18 @@
       </div>
     </div>
 
+    <div class="panel" style="margin-bottom:14px;">
+      <h3>제품별 문의 Top 10</h3>
+      <p class="sub">어떤 제품에서 문의가 많이 오는지</p>
+      <canvas id="productChart" height="140"></canvas>
+    </div>
+
     <div class="panel table-panel">
       <h3>문의 목록</h3>
       <p class="sub">필터를 적용하면 아래 목록도 함께 바뀝니다</p>
       <table>
         <thead>
-          <tr><th>날짜</th><th>채널</th><th>문제유형</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr>
+          <tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr>
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
@@ -136,7 +143,7 @@
 
 <script>
 let allData = [];
-let trendChart, typeChart;
+let trendChart, typeChart, productChart;
 
 async function loadData() {
   try {
@@ -203,19 +210,22 @@ function initFilters() {
     weekSel.appendChild(o);
   });
   fill('fChannel', unique(allData, '채널'));
+  fill('fProduct', unique(allData, '제품'));
   fill('fType', unique(allData, '문제유형'));
   fill('fStatus', unique(allData, '처리상태'));
-  ['fWeek','fChannel','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  ['fWeek','fChannel','fProduct','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
 }
 
 function getFiltered() {
   const fw = document.getElementById('fWeek').value;
   const fc = document.getElementById('fChannel').value;
+  const fp = document.getElementById('fProduct').value;
   const ft = document.getElementById('fType').value;
   const fs = document.getElementById('fStatus').value;
   return allData.filter(r =>
     (fw === 'all' || getMonday(r['날짜']) === fw) &&
     (fc === 'all' || r['채널'] === fc) &&
+    (fp === 'all' || r['제품'] === fp) &&
     (ft === 'all' || r['문제유형'] === ft) &&
     (fs === 'all' || r['처리상태'] === fs)
   );
@@ -289,12 +299,28 @@ function render() {
       scales:{x:{grid:{color:'rgba(20,23,31,0.06)'}}, y:{grid:{display:false}}}}
   });
 
+  // 제품별 문의 Top 10
+  const productCount = {};
+  rows.forEach(r => {
+    const p = r['제품'] || '미확인';
+    productCount[p] = (productCount[p]||0)+1;
+  });
+  const topProducts = Object.entries(productCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if (productChart) productChart.destroy();
+  productChart = new Chart(document.getElementById('productChart'), {
+    type:'bar',
+    data:{labels:topProducts.map(p=>p[0]), datasets:[{data:topProducts.map(p=>p[1]), backgroundColor:'#E8A33D', borderRadius:6, maxBarThickness:22}]},
+    options:{indexAxis:'y', plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(20,23,31,0.06)'}}, y:{grid:{display:false}}}}
+  });
+
   // 테이블
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = rows.slice().reverse().slice(0,20).map(r => `
     <tr>
       <td class="chip">${r['날짜']||''}</td>
       <td>${r['채널']||''}</td>
+      <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
       <td class="content-cell">${r['고객문의']||''}</td>
       <td class="content-cell">${r['답변내용']||''}</td>
