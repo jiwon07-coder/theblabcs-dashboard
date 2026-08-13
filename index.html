@@ -104,8 +104,8 @@
 
     <div class="charts">
       <div class="panel">
-        <h3>일별 문의량 추이</h3>
-        <p class="sub">문제유형별 스택 막대</p>
+        <h3>주차별 문의량</h3>
+        <p class="sub">문제유형별 스택 막대 (월요일 시작)</p>
         <canvas id="trendChart" height="150"></canvas>
       </div>
       <div class="panel">
@@ -154,6 +154,22 @@ async function loadData() {
 
 function unique(arr, key) {
   return [...new Set(arr.map(r => r[key]).filter(Boolean))];
+}
+
+function getMonday(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function weekLabel(mondayStr) {
+  const d = new Date(mondayStr);
+  const end = new Date(d);
+  end.setDate(end.getDate() + 6);
+  const fmt = (x) => `${x.getMonth()+1}/${x.getDate()}`;
+  return `${fmt(d)}~${fmt(end)}`;
 }
 
 function initFilters() {
@@ -221,19 +237,19 @@ function render() {
   document.getElementById('channelLegend').innerHTML = Object.entries(chCount)
     .map(([ch,cnt]) => `<span><span class="dot" style="background:${colorFor(channelColor,ch)}"></span>${ch} (${cnt})</span>`).join('');
 
-  // 일별 추이 (날짜별 x 문제유형 스택)
-  const dates = [...new Set(rows.map(r=>r['날짜']))].sort();
+  // 주차별 추이 (월요일 시작 주 x 문제유형 스택)
+  const weekKeys = [...new Set(rows.map(r => getMonday(r['날짜'])))].sort();
   const types = unique(rows, '문제유형');
   const trendDatasets = types.map((t,idx) => ({
     label: t,
-    data: dates.map(d => rows.filter(r=>r['날짜']===d && r['문제유형']===t).length),
+    data: weekKeys.map(wk => rows.filter(r => getMonday(r['날짜'])===wk && r['문제유형']===t).length),
     backgroundColor: palette[idx % palette.length],
     borderRadius: 4
   }));
   if (trendChart) trendChart.destroy();
   trendChart = new Chart(document.getElementById('trendChart'), {
     type:'bar',
-    data:{labels:dates, datasets:trendDatasets},
+    data:{labels:weekKeys.map(weekLabel), datasets:trendDatasets},
     options:{responsive:true,
       plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}},
       scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'rgba(20,23,31,0.06)'}}}
