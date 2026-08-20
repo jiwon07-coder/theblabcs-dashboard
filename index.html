@@ -81,6 +81,18 @@
     </div>
   </div>
 
+  <div class="panel" id="todayPanel" style="margin-bottom:24px;">
+    <h3>오늘 들어온 문의 (<span id="todayDateLabel">-</span>)</h3>
+    <p class="sub"><span id="todayCount">0</span>건 · 아래 필터와 무관하게 항상 오늘 날짜 기준으로 표시돼요</p>
+    <table>
+      <thead>
+        <tr><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>상태</th></tr>
+      </thead>
+      <tbody id="todayTableBody"></tbody>
+    </table>
+    <p id="todayEmpty" style="display:none;color:var(--slate);font-size:13px;padding:12px 0 0;">오늘 들어온 문의가 아직 없어요.</p>
+  </div>
+
   <div class="filters">
     <select id="fWeek"><option value="all">전체 기간</option></select>
     <select id="fChannel"><option value="all">전체 채널</option></select>
@@ -153,6 +165,7 @@ async function loadData() {
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('totalCount').textContent = allData.length;
     initFilters();
+    renderToday();
     render();
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
@@ -214,6 +227,39 @@ function initFilters() {
   fill('fType', unique(allData, '문제유형'));
   fill('fStatus', unique(allData, '처리상태'));
   ['fWeek','fChannel','fProduct','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
+}
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function renderToday() {
+  const today = todayStr();
+  document.getElementById('todayDateLabel').textContent = today;
+  const rows = allData.filter(r => r['날짜'] === today);
+  document.getElementById('todayCount').textContent = rows.length;
+  const tbody = document.getElementById('todayTableBody');
+  const emptyEl = document.getElementById('todayEmpty');
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  tbody.innerHTML = rows.slice().reverse().map(r => `
+    <tr>
+      <td>${r['채널']||''}</td>
+      <td>${r['제품']||'-'}</td>
+      <td>${r['문제유형']||''}</td>
+      <td class="chip">${r['소분류']||''}</td>
+      <td class="content-cell">${r['고객문의']||''}</td>
+      <td><span class="badge b-${r['처리상태']}">${r['처리상태']||''}</span></td>
+    </tr>
+  `).join('');
 }
 
 function getFiltered() {
