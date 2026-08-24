@@ -102,10 +102,8 @@
   </div>
 
   <div id="loadError" style="display:none;" class="empty-state">
-    <p><strong>cs_data.json을 불러올 수 없어요.</strong></p>
-    <p>이 파일은 로컬 서버로 열어야 해요. 같은 폴더에서 터미널을 열고<br>
-    <code>python -m http.server 8000</code> 실행 후, 브라우저에서<br>
-    <code>http://localhost:8000/cs_dashboard_live.html</code> 로 접속해주세요.</p>
+    <p><strong>데이터를 불러올 수 없어요.</strong></p>
+    <p>잠시 후 새로고침해주세요. 계속되면 서버 쪽 설정(환경변수/구글시트 접근 권한)을 확인해주세요.</p>
   </div>
 
   <div id="dashboardContent">
@@ -150,16 +148,17 @@
     </div>
   </div>
 
-  <p class="foot-note">※ 이 데이터는 로컬 파일(cs_data.json)에서만 읽어오며 외부에 공개되지 않습니다.</p>
+  <p class="foot-note">※ 이 데이터는 서버에서 그때그때 구글시트를 직접 조회해 가져오며, 별도로 저장되지 않습니다.</p>
 </div>
 
 <script>
 let allData = [];
 let trendChart, typeChart, productChart;
 
-async function loadData() {
+async function loadData(pw) {
   try {
-    const res = await fetch('./cs_data.json?t=' + Date.now());
+    const res = await fetch('/api/data', { headers: { 'X-Dashboard-Password': pw } });
+    if (res.status === 401) return 'unauthorized';
     if (!res.ok) throw new Error('not found');
     allData = await res.json();
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
@@ -167,9 +166,11 @@ async function loadData() {
     initFilters();
     renderToday();
     render();
+    return 'ok';
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
     document.getElementById('dashboardContent').style.display = 'none';
+    return 'error';
   }
 }
 
@@ -376,26 +377,25 @@ function render() {
   `).join('');
 }
 
-loadData();
-</script>
-
-<script>
-  const CORRECT_PW = "ejqlfoq3djr!";
-  function tryUnlock() {
-    const val = document.getElementById('pwInput').value;
-    if (val === CORRECT_PW) {
-      sessionStorage.setItem('cs_dashboard_unlocked', 'yes');
-      document.getElementById('pwGate').style.display = 'none';
-    } else {
-      document.getElementById('pwError').style.display = 'block';
-    }
-  }
-  document.getElementById('pwSubmit').addEventListener('click', tryUnlock);
-  document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
-
-  if (sessionStorage.getItem('cs_dashboard_unlocked') === 'yes') {
+async function tryUnlock(pw) {
+  document.getElementById('pwError').style.display = 'none';
+  const result = await loadData(pw);
+  if (result === 'ok') {
+    sessionStorage.setItem('cs_dashboard_pw', pw);
     document.getElementById('pwGate').style.display = 'none';
+  } else if (result === 'unauthorized') {
+    sessionStorage.removeItem('cs_dashboard_pw');
+    document.getElementById('pwError').style.display = 'block';
   }
+}
+
+document.getElementById('pwSubmit').addEventListener('click', () => tryUnlock(document.getElementById('pwInput').value));
+document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(document.getElementById('pwInput').value); });
+
+const savedPw = sessionStorage.getItem('cs_dashboard_pw');
+if (savedPw) {
+  tryUnlock(savedPw);
+}
 </script>
 </body>
 </html>
