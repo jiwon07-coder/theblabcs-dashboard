@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Vercel 서버리스 함수: /api/data
+Vercel용 단일 Flask 앱.
 
-브라우저가 대시보드를 열 때마다 이 함수가 호출되어 구글시트에서 그 순간의
-최신 데이터를 읽어와 돌려준다. cs_data.json 같은 정적 파일이나 수동 push가
-필요 없어짐 (예전 export_dashboard.py의 로직을 그대로 옮겨온 것).
+"/"       -> index.html 그대로 서빙
+"/api/data" -> 브라우저가 대시보드를 열 때마다 구글시트에서 그 순간의 최신
+              데이터를 읽어와 반환 (cs_data.json 같은 정적 파일이나 수동
+              push가 필요 없어짐 - 예전 export_dashboard.py 로직을 옮겨옴)
 
 필요한 Vercel 환경변수 3개:
   GOOGLE_SERVICE_ACCOUNT_JSON -> service_account.json 파일 내용 전체(중괄호 포함)
@@ -14,10 +15,12 @@ Vercel 서버리스 함수: /api/data
 import os
 import re
 import json
-from http.server import BaseHTTPRequestHandler
 
+from flask import Flask, Response, request, send_file
 import gspread
 from google.oauth2.service_account import Credentials
+
+app = Flask(__name__)
 
 CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
 
@@ -143,28 +146,22 @@ def fetch_records():
     return all_records
 
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        pw = self.headers.get("X-Dashboard-Password", "")
+@app.route("/")
+def index():
+    return send_file("index.html")
 
-        if pw != os.environ.get("DASHBOARD_PASSWORD"):
-            self.send_response(401)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "unauthorized"}).encode("utf-8"))
-            return
 
-        try:
-            records = fetch_records()
-        except Exception as e:
-            self.send_response(500)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
-            return
+@app.route("/api/data")
+def api_data():
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
 
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(json.dumps(records, ensure_ascii=False).encode("utf-8"))
+    try:
+        records = fetch_records()
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps(records, ensure_ascii=False), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
