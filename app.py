@@ -139,9 +139,13 @@ def fetch_records():
                 r["답변내용"] = mask_pii(r["답변내용"])
             if "제품" in r:
                 r["제품"] = normalize_product(r["제품"])
-            major, minor = classify_inquiry(r.get("고객문의", ""))
-            r["문제유형"] = major
-            r["소분류"] = minor
+            # 문제유형/소분류는 이제 원칙적으로 시트에 이미 저장돼있음 (동기화 스크립트가
+            # 새 문의를 넣을 때 AI로 분류해서 같이 저장함). 혹시 비어있는 행이 있으면
+            # (예: 수동 입력 채널상담 탭, 과거 미분류 데이터) 정규식 분류로 대체함.
+            if not r.get("소분류"):
+                major, minor = classify_inquiry(r.get("고객문의", ""))
+                r["문제유형"] = major
+                r["소분류"] = minor
         all_records.extend(records)
     return all_records
 
