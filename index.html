@@ -52,8 +52,10 @@
   tbody tr:hover{background:rgba(20,23,31,0.03);}
   :root:not([data-theme="light"]) tbody tr:hover, [data-theme="dark"] tbody tr:hover { background:rgba(241,239,234,0.04); }
   .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
-  .b-완료{background:rgba(47,143,130,0.14);color:var(--good);}
-  .b-대기{background:rgba(217,97,79,0.14);color:var(--coral);}
+  .badge[data-status="완료"]{background:rgba(47,143,130,0.14);color:var(--good);}
+  .badge[data-status="대기"]{background:rgba(217,97,79,0.14);color:var(--coral);}
+  .badge[data-status="확인 필요"]{background:rgba(232,163,61,0.16);color:#9A6A1E;}
+  :root:not([data-theme="light"]) .badge[data-status="확인 필요"], [data-theme="dark"] .badge[data-status="확인 필요"] { color:#F2C879; }
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
@@ -256,7 +258,7 @@ function renderToday() {
       <td>${r['문제유형']||''}</td>
       <td class="chip">${r['소분류']||''}</td>
       <td class="content-cell">${r['고객문의']||''}</td>
-      <td><span class="badge b-${r['처리상태']}">${r['처리상태']||''}</span></td>
+      <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 }
 
@@ -387,7 +389,7 @@ function render() {
       <td class="chip">${r['소분류']||''}</td>
       <td class="content-cell">${r['고객문의']||''}</td>
       <td class="content-cell">${r['답변내용']||''}</td>
-      <td><span class="badge b-${r['처리상태']}">${r['처리상태']||''}</span></td>
+      <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 }
 
