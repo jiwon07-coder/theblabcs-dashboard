@@ -10,40 +10,88 @@
   :root{
     --ink:#14171F; --paper:#F6F4EF; --surface:#FFFFFF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
     --amber:#E8A33D; --teal:#2F8F82; --coral:#D9614F; --card-radius: 14px;
-    --good:#2F8F82; --warn:#E8A33D;
+    --good:#2F8F82; --sidebar:#1B1E27; --sidebar-ink:#F1EFEA; --sidebar-line: rgba(241,239,234,0.10);
+    --sidebar-active: rgba(232,163,61,0.16);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --ink:#F1EFEA; --paper:#15171C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(241,239,234,0.12);
+      --sidebar:#0F1116; --sidebar-line: rgba(241,239,234,0.08);
     }
   }
   :root[data-theme="dark"]{
     --ink:#F1EFEA; --paper:#15171C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(241,239,234,0.12);
+    --sidebar:#0F1116; --sidebar-line: rgba(241,239,234,0.08);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);
     font-family:'Inter','Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 60px;}
-  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);
-    padding-bottom:20px;margin-bottom:22px;flex-wrap:wrap;gap:16px;}
-  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;
-    color:var(--slate);margin:0 0 6px;}
-  h1{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:600;margin:0;letter-spacing:-0.01em;text-wrap:balance;}
-  .top-meta{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--slate);}
-  .top-meta strong{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums;}
+
+  .shell{min-height:100vh;}
+
+  /* ===== 사이드바 (기본 숨김, 메뉴 버튼으로 열림) ===== */
+  .sidebar{width:236px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);
+    display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:110;
+    transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    box-shadow:0 0 0 rgba(0,0,0,0);}
+  .sidebar.open{transform:translateX(0);box-shadow:2px 0 24px rgba(0,0,0,0.18);}
+  .sidebar-overlay{position:fixed;inset:0;background:rgba(15,17,22,0.38);z-index:105;
+    opacity:0;pointer-events:none;transition:opacity .2s;}
+  .sidebar-overlay.open{opacity:1;pointer-events:auto;}
+  .sb-brand{padding:22px 18px 18px 20px;border-bottom:1px solid var(--sidebar-line);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .sb-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+    color:rgba(241,239,234,0.5);margin:0 0 4px;}
+  .sb-title{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .sb-close{background:none;border:none;color:rgba(241,239,234,0.55);cursor:pointer;padding:4px;
+    border-radius:6px;line-height:1;flex:none;margin-top:1px;}
+  .sb-close:hover{color:var(--sidebar-ink);background:rgba(241,239,234,0.08);}
+  .sb-close svg{display:block;width:16px;height:16px;}
+
+  /* 메뉴 버튼: 사이드바 닫혀있을 때 본문 좌상단에 고정 */
+  .menu-btn{position:fixed;top:22px;left:22px;z-index:90;display:flex;align-items:center;gap:8px;
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 13px;
+    cursor:pointer;font-family:'Inter',sans-serif;font-size:12.5px;font-weight:500;color:var(--ink);
+    box-shadow:0 1px 3px rgba(20,23,31,0.06);transition:opacity .15s;}
+  .menu-btn:hover{background:var(--paper);}
+  .menu-btn svg{display:block;width:16px;height:16px;flex:none;}
+  .menu-btn.hide{opacity:0;pointer-events:none;}
+  .sb-nav{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:3px;}
+  .sb-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;
+    border-radius:9px;cursor:pointer;background:none;border:none;color:rgba(241,239,234,0.72);
+    font-family:'Inter',sans-serif;font-size:13.5px;font-weight:500;text-align:left;width:100%;
+    transition:background .12s, color .12s;}
+  .sb-item:hover{background:rgba(241,239,234,0.06);color:var(--sidebar-ink);}
+  .sb-item.active{background:var(--sidebar-active);color:#F2C879;}
+  .sb-item .sb-label{display:flex;align-items:center;gap:9px;}
+  .sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.55;flex:none;}
+  .sb-count{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 7px;border-radius:999px;
+    background:rgba(217,97,79,0.22);color:#F0A99C;font-variant-numeric:tabular-nums;}
+  .sb-item.active .sb-count{background:rgba(232,163,61,0.28);color:#F2C879;}
+  .sb-count.zero{background:rgba(241,239,234,0.08);color:rgba(241,239,234,0.4);}
+  .sb-foot{padding:16px 20px 20px;border-top:1px solid var(--sidebar-line);
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:rgba(241,239,234,0.42);line-height:1.7;}
+  .sb-foot strong{color:rgba(241,239,234,0.75);font-weight:500;font-variant-numeric:tabular-nums;}
+
+  /* ===== 본문 ===== */
+  .main{min-width:0;max-width:1100px;margin:0 auto;padding:30px 34px 60px;padding-left:76px;}
+  .page-head{margin-bottom:22px;}
+  .page-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;
+    color:var(--slate);margin:0 0 4px;}
+  .page-title{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:600;margin:0;letter-spacing:-0.01em;text-wrap:balance;}
+
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--card-radius);padding:20px 22px;}
   .panel h3{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;margin:0 0 4px;}
   .panel .sub{font-size:12px;color:var(--slate);margin:0 0 14px;}
   .section{margin-bottom:18px;}
 
   .kpis{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:18px;}
-  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--card-radius);padding:22px 26px;
-    display:flex;flex-direction:column;justify-content:center;}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--card-radius);padding:22px 26px;}
   .kpi .label{font-size:12px;color:var(--slate);margin-bottom:8px;}
   .kpi .value{font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
   .kpi .delta{font-family:'IBM Plex Mono',monospace;font-size:12px;margin-top:8px;display:flex;align-items:center;gap:5px;}
   .delta.up{color:var(--good);} .delta.down{color:var(--coral);} .delta.flat{color:var(--slate);}
-  .kpi-week .value-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
+  .kpi .value-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
 
   table{width:100%;border-collapse:collapse;font-size:13px;}
   thead th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;
@@ -55,7 +103,6 @@
   .badge[data-status="완료"]{background:rgba(47,143,130,0.14);color:var(--good);}
   .badge[data-status="대기"]{background:rgba(217,97,79,0.14);color:var(--coral);}
   .badge[data-status="확인 필요"]{background:rgba(232,163,61,0.16);color:#9A6A1E;}
-  :root:not([data-theme="light"]) .badge[data-status="확인 필요"], [data-theme="dark"] .badge[data-status="확인 필요"] { color:#F2C879; }
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
@@ -67,6 +114,26 @@
   .legend{display:flex;gap:16px;font-size:12px;color:var(--slate);flex-wrap:wrap;margin-top:10px;}
   .legend span{display:inline-flex;align-items:center;gap:6px;}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;}
+
+  /* ===== 홈 탭 ===== */
+  .home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--card-radius);
+    padding:20px 22px;text-align:left;cursor:pointer;font-family:inherit;
+    border-left:3px solid var(--line);transition:border-color .12s, transform .12s;}
+  .stat-card:hover{transform:translateY(-1px);}
+  .stat-card.urgent{border-left-color:var(--coral);}
+  .stat-card.warn{border-left-color:var(--amber);}
+  .stat-card.neutral{border-left-color:var(--good);}
+  .stat-label{font-size:12px;color:var(--slate);margin-bottom:8px;}
+  .stat-value{font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:600;
+    font-variant-numeric:tabular-nums;line-height:1;color:var(--ink);}
+  .stat-hint{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--slate);margin-top:9px;}
+  .ai-summary{color:var(--ink);font-style:italic;max-width:360px;}
+  .ai-summary::before{content:"✦ ";font-style:normal;color:var(--amber);}
+  .link-btn{background:none;border:none;color:var(--slate);font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;cursor:pointer;padding:4px 0;flex:none;}
+  .link-btn:hover{color:var(--ink);text-decoration:underline;}
+  @media (max-width:700px){.home-stats{grid-template-columns:1fr;}}
 
   .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
   .panel-head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
@@ -81,10 +148,20 @@
   svg text{font-family:'IBM Plex Mono',monospace;fill:var(--slate);}
   .prod-label{font-family:'Inter',sans-serif !important;fill:var(--ink) !important;font-size:12px;}
 
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
   .foot-note{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);
     font-size:11px;color:var(--slate);font-family:'IBM Plex Mono',monospace;}
 
-  @media (max-width:820px){.charts-row{grid-template-columns:1fr;}}
+  @media (max-width:900px){
+    .charts-row{grid-template-columns:1fr;}
+    .main{padding:22px 18px 40px;padding-left:66px;}
+    .menu-btn{top:16px;left:16px;}
+  }
+  @media (max-width:520px){
+    .sidebar{width:82vw;max-width:300px;}
+  }
 </style>
 </head>
 <body>
@@ -102,88 +179,177 @@
   </div>
 </div>
 
-<div class="wrap">
-  <div class="top">
-    <div>
-      <p class="eyebrow">CS Control Desk · Live</p>
-      <h1>실시간 문의 현황</h1>
-    </div>
-    <div class="top-meta">
-      데이터 로드: <strong id="lastUpdated">-</strong><br>
-      총 <strong id="totalCount">0</strong>건 기준
-    </div>
-  </div>
+<div id="loadError" style="display:none;" class="empty-state">
+  <p><strong>데이터를 불러올 수 없어요.</strong></p>
+  <p>잠시 후 새로고침해주세요. 계속되면 서버 쪽 설정(환경변수/구글시트 접근 권한)을 확인해주세요.</p>
+</div>
 
-  <div id="loadError" style="display:none;" class="empty-state">
-    <p><strong>데이터를 불러올 수 없어요.</strong></p>
-    <p>잠시 후 새로고침해주세요. 계속되면 서버 쪽 설정(환경변수/구글시트 접근 권한)을 확인해주세요.</p>
-  </div>
+<div class="shell" id="dashboardContent">
+  <div class="sidebar-overlay" id="sbOverlay"></div>
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <div>
+        <p class="sb-eyebrow">CS Control Desk</p>
+        <h1 class="sb-title">문의 관리</h1>
+      </div>
+      <button class="sb-close" id="sbClose" aria-label="메뉴 닫기">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
+      </button>
+    </div>
+    <div class="sb-nav" id="sbNav">
+      <button class="sb-item active" data-tab="home">
+        <span class="sb-label"><span class="sb-dot"></span>홈</span>
+      </button>
+      <button class="sb-item" data-tab="today">
+        <span class="sb-label"><span class="sb-dot"></span>오늘 처리</span>
+        <span class="sb-count" id="sbTodayCount">0</span>
+      </button>
+      <button class="sb-item" data-tab="weekly">
+        <span class="sb-label"><span class="sb-dot"></span>주간 분석</span>
+        <span class="sb-count" id="sbWeekCount">0</span>
+      </button>
+      <button class="sb-item" data-tab="products">
+        <span class="sb-label"><span class="sb-dot"></span>제품별 분석</span>
+      </button>
+    </div>
+    <div class="sb-foot">
+      데이터 로드<br><strong id="lastUpdated">-</strong><br>
+      총 <strong id="totalCount">0</strong>건
+    </div>
+  </nav>
 
-  <div id="dashboardContent">
-    <div class="panel section" id="todayPanel">
-      <h3>오늘 처리해야 할 문의</h3>
-      <p class="sub"><span id="todayCount">0</span>건</p>
-      <table>
-        <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>상태</th></tr></thead>
-        <tbody id="todayTableBody"></tbody>
-      </table>
-      <p id="todayEmpty" class="empty-state" style="display:none;">처리할 문의가 없어요. 다 처리하셨네요!</p>
+  <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5.5h14M3 10h14M3 14.5h14"/></svg>
+    메뉴
+  </button>
+
+  <main class="main">
+    <div class="page-head">
+      <p class="page-eyebrow" id="pageEyebrow">Home</p>
+      <h2 class="page-title" id="pageTitle">홈</h2>
     </div>
 
-    <div class="kpis">
-      <div class="kpi kpi-week">
-        <div class="label">이번 주 신규 문의 (<span id="weekRangeLabel"></span>)</div>
-        <div class="value-row">
-          <div class="value" id="kpiWeekCount">–</div>
-          <div class="delta" id="kpiWeekDelta"></div>
+    <!-- ===== 탭 0: 홈 ===== -->
+    <div class="tab-panel active" id="tab-home">
+      <div class="home-stats">
+        <button class="stat-card urgent" id="homeTodayCard" data-goto="today">
+          <div class="stat-label">오늘 처리할 문의</div>
+          <div class="stat-value" id="homeTodayValue">0</div>
+          <div class="stat-hint">바로 처리하러 가기 →</div>
+        </button>
+        <button class="stat-card warn" id="homeCheckCard" data-goto="today">
+          <div class="stat-label">확인 필요</div>
+          <div class="stat-value" id="homeCheckValue">0</div>
+          <div class="stat-hint">API에서 사라진 문의 →</div>
+        </button>
+        <button class="stat-card neutral" id="homeWeekCard" data-goto="weekly">
+          <div class="stat-label">이번 주 신규 문의</div>
+          <div class="stat-value" id="homeWeekValue">0</div>
+          <div class="stat-hint" id="homeWeekHint">주간 분석 보기 →</div>
+        </button>
+      </div>
+
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>가장 오래 기다린 문의</h3>
+          <button class="link-btn" data-goto="today">전체 보기 →</button>
+        </div>
+        <table>
+          <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>고객문의</th><th>상태</th></tr></thead>
+          <tbody id="homePreviewBody"></tbody>
+        </table>
+        <p id="homePreviewEmpty" class="empty-state" style="display:none;">처리할 문의가 없어요. 다 처리하셨네요!</p>
+      </div>
+    </div>
+
+    <!-- ===== 탭 1: 오늘 처리 ===== -->
+    <div class="tab-panel" id="tab-today">
+      <div class="panel section" id="todayPanel">
+        <p class="sub"><span id="todayCount">0</span>건</p>
+        <table>
+          <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>상태</th></tr></thead>
+          <tbody id="todayTableBody"></tbody>
+        </table>
+        <p id="todayEmpty" class="empty-state" style="display:none;">처리할 문의가 없어요. 다 처리하셨네요!</p>
+      </div>
+
+      <div class="filters">
+        <select id="fWeek"><option value="all">전체 기간</option></select>
+        <select id="fChannel"><option value="all">전체 채널</option></select>
+        <select id="fProduct"><option value="all">전체 제품</option></select>
+        <select id="fType"><option value="all">전체 문제유형</option></select>
+        <select id="fStatus"><option value="all">전체 상태</option></select>
+      </div>
+
+      <div class="panel table-panel">
+        <h3>문의 목록</h3>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
         </div>
       </div>
     </div>
 
-    <div class="panel section">
-      <div class="panel-head-row">
-        <h3>주간 문의 분석</h3>
-        <select id="fAnalysisWeek"></select>
-      </div>
-      <div class="charts-row">
-        <div>
-          <h4 class="chart-subtitle">문제유형 분포</h4>
-          <div id="typeChart"></div>
-        </div>
-        <div>
-          <h4 class="chart-subtitle">제품별 문제유형</h4>
-          <div id="productChart"></div>
-          <div class="legend" id="productLegend"></div>
+    <!-- ===== 탭 2: 주간 분석 ===== -->
+    <div class="tab-panel" id="tab-weekly">
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">이번 주 신규 문의 (<span id="weekRangeLabel"></span>)</div>
+          <div class="value-row">
+            <div class="value" id="kpiWeekCount">–</div>
+            <div class="delta" id="kpiWeekDelta"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="filters">
-      <select id="fWeek"><option value="all">전체 기간</option></select>
-      <select id="fChannel"><option value="all">전체 채널</option></select>
-      <select id="fProduct"><option value="all">전체 제품</option></select>
-      <select id="fType"><option value="all">전체 문제유형</option></select>
-      <select id="fStatus"><option value="all">전체 상태</option></select>
-    </div>
-
-    <div class="panel table-panel">
-      <h3>문의 목록</h3>
-      <div style="overflow-x:auto;">
-      <table>
-        <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr></thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>주간 문의 분석</h3>
+          <select id="fAnalysisWeek"></select>
+        </div>
+        <div class="charts-row">
+          <div>
+            <h4 class="chart-subtitle">문제유형 분포</h4>
+            <div id="typeChart"></div>
+          </div>
+          <div>
+            <h4 class="chart-subtitle">제품별 문제유형</h4>
+            <div id="productChart"></div>
+            <div class="legend" id="productLegend"></div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <p class="foot-note">※ 이 데이터는 서버에서 그때그때 구글시트를 직접 조회해 가져오며, 별도로 저장되지 않습니다.</p>
+    <!-- ===== 탭 3: 제품별 분석 ===== -->
+    <div class="tab-panel" id="tab-products">
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>제품별 문의 순위</h3>
+          <select id="fProductWeek"></select>
+        </div>
+        <p class="sub">선택한 주에 문의가 많았던 순서 · AI가 그 주 문의 내용을 한 줄로 요약</p>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>제품</th><th>문의</th><th>최다 문제유형</th><th>AI 한 줄 요약</th></tr></thead>
+          <tbody id="productRankBody"></tbody>
+        </table>
+        </div>
+        <p id="productRankEmpty" class="empty-state" style="display:none;">이 주엔 문의가 없어요.</p>
+      </div>
+    </div>
+
+    <p class="foot-note">※ 이 데이터는 서버에서 그때그때 구글시트를 직접 조회해 가져오며, 별도로 저장되지 않습니다.</p>
+  </main>
 </div>
 
 <div class="chart-tt" id="chartTooltip"></div>
 
 <script>
 let allData = [];
+let PRODUCT_SUMMARIES = {};
 
 const TYPE_ORDER = ['사용 방법', '제품 불량', '배송문의', '기타 문의'];
 const TYPE_COLOR = {'사용 방법':'#E8A33D', '제품 불량':'#D9614F', '배송문의':'#2F8F82', '기타 문의':'#5B6274'};
@@ -193,14 +359,16 @@ async function loadData(pw) {
     const res = await fetch('/api/data', { headers: { 'X-Dashboard-Password': pw } });
     if (res.status === 401) return 'unauthorized';
     if (!res.ok) throw new Error('not found');
-    allData = await res.json();
+    const payload = await res.json();
+    allData = payload.records;
+    PRODUCT_SUMMARIES = payload.summaries || {};
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('totalCount').textContent = allData.length;
     renderToday();
     renderWeekKpi();
+    renderHome();
     initFilters();
     render();
-    renderAnalysis();
     return 'ok';
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
@@ -240,11 +408,89 @@ function showTip(evt, html) {
 function moveTip(evt) { tt.style.left = evt.clientX + 'px'; tt.style.top = (evt.clientY - 10) + 'px'; }
 function hideTip() { tt.style.opacity = 0; }
 
+// ===== 탭 전환 =====
+const TAB_META = {
+  home: { eyebrow: 'Home', title: '홈' },
+  today: { eyebrow: 'Today', title: '오늘 처리해야 할 문의' },
+  weekly: { eyebrow: 'Weekly', title: '주간 문의 분석' },
+  products: { eyebrow: 'Products', title: '제품별 분석' },
+};
+function switchTab(tab) {
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
+  document.getElementById('pageEyebrow').textContent = TAB_META[tab].eyebrow;
+  document.getElementById('pageTitle').textContent = TAB_META[tab].title;
+  if (tab === 'weekly') { renderAnalysis(); }
+  if (tab === 'products') { renderProductRank(); }
+}
+document.getElementById('sbNav').addEventListener('click', (e) => {
+  const btn = e.target.closest('.sb-item');
+  if (btn) { switchTab(btn.dataset.tab); closeSidebar(); }
+});
+document.querySelectorAll('[data-goto]').forEach(el => {
+  el.addEventListener('click', () => switchTab(el.dataset.goto));
+});
+
+function renderHome() {
+  const pending = allData.filter(r => r['처리상태'] !== '완료');
+  const checkNeeded = allData.filter(r => r['처리상태'] === '확인 필요');
+  document.getElementById('homeTodayValue').textContent = pending.length;
+  document.getElementById('homeCheckValue').textContent = checkNeeded.length;
+
+  const weeks = [...new Set(allData.map(r => getMonday(r['날짜'])))].sort();
+  const thisWeek = weeks[weeks.length-1];
+  const lastWeek = weeks.length > 1 ? weeks[weeks.length-2] : null;
+  const thisCount = allData.filter(r => getMonday(r['날짜']) === thisWeek).length;
+  const lastCount = lastWeek ? allData.filter(r => getMonday(r['날짜']) === lastWeek).length : null;
+  document.getElementById('homeWeekValue').textContent = thisCount;
+  const hintEl = document.getElementById('homeWeekHint');
+  if (lastCount !== null) {
+    const diff = thisCount - lastCount;
+    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '–';
+    hintEl.textContent = `${arrow} 지난주 대비 ${Math.abs(diff)}건 · 주간 분석 보기 →`;
+  }
+
+  const tbody = document.getElementById('homePreviewBody');
+  const emptyEl = document.getElementById('homePreviewEmpty');
+  const oldest = pending.slice().sort((a,b) => (a['날짜']||'').localeCompare(b['날짜']||'')).slice(0,3);
+  if (!oldest.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  tbody.innerHTML = oldest.map(r => `
+    <tr>
+      <td class="chip">${r['날짜']||''}</td>
+      <td>${r['채널']||''}</td>
+      <td>${r['제품']||'-'}</td>
+      <td>${r['문제유형']||''}</td>
+      <td class="content-cell">${r['고객문의']||''}</td>
+      <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
+    </tr>`).join('');
+}
+
+// ===== 사이드바 열기/닫기 =====
+const sidebarEl = document.getElementById('sidebar');
+const overlayEl = document.getElementById('sbOverlay');
+const menuBtnEl = document.getElementById('menuBtn');
+function openSidebar() {
+  sidebarEl.classList.add('open');
+  overlayEl.classList.add('open');
+  menuBtnEl.classList.add('hide');
+}
+function closeSidebar() {
+  sidebarEl.classList.remove('open');
+  overlayEl.classList.remove('open');
+  menuBtnEl.classList.remove('hide');
+}
+menuBtnEl.addEventListener('click', openSidebar);
+document.getElementById('sbClose').addEventListener('click', closeSidebar);
+overlayEl.addEventListener('click', closeSidebar);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+
 function renderToday() {
-  // "오늘 처리해야 할 문의" = 들어온 날짜와 무관하게 아직 답변 안 한(대기) 문의 전부.
-  // 주말 등에 못 본 문의도 월요일엔 자연히 여기에 남아있게 됨.
   const rows = allData.filter(r => r['처리상태'] !== '완료');
   document.getElementById('todayCount').textContent = rows.length;
+  const sbCount = document.getElementById('sbTodayCount');
+  sbCount.textContent = rows.length;
+  sbCount.classList.toggle('zero', rows.length === 0);
   const tbody = document.getElementById('todayTableBody');
   const emptyEl = document.getElementById('todayEmpty');
   if (!rows.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
@@ -270,6 +516,7 @@ function renderWeekKpi() {
   const lastCount = lastWeek ? allData.filter(r => getMonday(r['날짜']) === lastWeek).length : null;
   document.getElementById('weekRangeLabel').textContent = weekLabel(thisWeek);
   document.getElementById('kpiWeekCount').textContent = thisCount;
+  document.getElementById('sbWeekCount').textContent = thisCount;
   const deltaEl = document.getElementById('kpiWeekDelta');
   if (lastCount === null) { deltaEl.textContent = ''; return; }
   const diff = thisCount - lastCount;
@@ -281,10 +528,12 @@ function renderWeekKpi() {
 function initFilters() {
   const fill = (id, values) => {
     const sel = document.getElementById(id);
+    sel.querySelectorAll('option:not([value="all"])').forEach(o => o.remove());
     values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
   };
   const weekKeys = [...new Set(allData.map(r => getMonday(r['날짜'])))].sort();
   const weekSel = document.getElementById('fWeek');
+  weekSel.querySelectorAll('option:not([value="all"])').forEach(o => o.remove());
   weekKeys.forEach(wk => { const o = document.createElement('option'); o.value = wk; o.textContent = weekOfMonthLabel(wk); weekSel.appendChild(o); });
   fill('fChannel', unique(allData, '채널'));
   fill('fProduct', unique(allData, '제품'));
@@ -292,11 +541,48 @@ function initFilters() {
   fill('fStatus', unique(allData, '처리상태'));
   ['fWeek','fChannel','fProduct','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
 
-  // 주간 문의 분석 전용 주 선택 (기본값: 가장 최근 주) - 아래 테이블 필터와는 독립적
   const analysisSel = document.getElementById('fAnalysisWeek');
+  analysisSel.innerHTML = '';
   weekKeys.forEach(wk => { const o = document.createElement('option'); o.value = wk; o.textContent = weekOfMonthLabel(wk); analysisSel.appendChild(o); });
   if (weekKeys.length) analysisSel.value = weekKeys[weekKeys.length - 1];
   analysisSel.addEventListener('change', renderAnalysis);
+
+  const productWeekSel = document.getElementById('fProductWeek');
+  productWeekSel.innerHTML = '';
+  weekKeys.forEach(wk => { const o = document.createElement('option'); o.value = wk; o.textContent = weekOfMonthLabel(wk); productWeekSel.appendChild(o); });
+  if (weekKeys.length) productWeekSel.value = weekKeys[weekKeys.length - 1];
+  productWeekSel.addEventListener('change', renderProductRank);
+}
+
+function renderProductRank() {
+  const wk = document.getElementById('fProductWeek').value;
+  const rows = allData.filter(r => getMonday(r['날짜']) === wk);
+  const byProduct = {};
+  rows.forEach(r => {
+    const p = r['제품'] || '미분류';
+    if (!byProduct[p]) byProduct[p] = [];
+    byProduct[p].push(r);
+  });
+  const ranked = Object.entries(byProduct).sort((a,b) => b[1].length - a[1].length);
+
+  const tbody = document.getElementById('productRankBody');
+  const emptyEl = document.getElementById('productRankEmpty');
+  if (!ranked.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = ranked.map(([product, items]) => {
+    const typeCounts = {};
+    items.forEach(r => typeCounts[r['문제유형']] = (typeCounts[r['문제유형']]||0)+1);
+    const topType = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1])[0];
+    const summary = PRODUCT_SUMMARIES[`${wk}|${product}`];
+    return `
+    <tr>
+      <td>${product}</td>
+      <td class="chip">${items.length}건</td>
+      <td>${topType ? topType[0] : '-'}</td>
+      <td class="ai-summary">${summary ? summary : '<span class="chip">(요약 없음)</span>'}</td>
+    </tr>`;
+  }).join('');
 }
 
 function getFiltered() {
@@ -412,7 +698,12 @@ const savedPw = sessionStorage.getItem('cs_dashboard_pw');
 if (savedPw) {
   tryUnlock(savedPw);
 }
-window.addEventListener('resize', () => { if (allData.length) { render(); renderAnalysis(); } });
+window.addEventListener('resize', () => {
+  if (!allData.length) return;
+  render();
+  if (document.getElementById('tab-weekly').classList.contains('active')) renderAnalysis();
+  if (document.getElementById('tab-products').classList.contains('active')) renderProductRank();
+});
 </script>
 </body>
 </html>

@@ -150,6 +150,34 @@ def fetch_records():
     return all_records
 
 
+def fetch_summaries():
+    """"주간요약" 탭(주-제품별 AI 한 줄 요약, 로컬에서 미리 계산해둔 값)을 읽어서
+    "주|제품" 키의 dict로 반환. 이 탭이 없으면(아직 한 번도 안 돌았으면) 빈 dict."""
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    creds = Credentials.from_service_account_info(info, scopes=scopes)
+    gc = gspread.authorize(creds)
+    spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+
+    try:
+        tab = spreadsheet.worksheet("주간요약")
+    except gspread.exceptions.WorksheetNotFound:
+        return {}
+    values = tab.get_all_values()
+    if not values:
+        return {}
+    headers = values[0]
+    week_idx = headers.index("주")
+    product_idx = headers.index("제품")
+    summary_idx = headers.index("요약")
+    result = {}
+    for row in values[1:]:
+        if len(row) <= max(week_idx, product_idx, summary_idx):
+            continue
+        result[f"{row[week_idx]}|{row[product_idx]}"] = row[summary_idx]
+    return result
+
+
 @app.route("/")
 def index():
     return send_file("index.html")
@@ -163,9 +191,10 @@ def api_data():
 
     try:
         records = fetch_records()
+        summaries = fetch_summaries()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
-    resp = Response(json.dumps(records, ensure_ascii=False), mimetype="application/json")
+    resp = Response(json.dumps({"records": records, "summaries": summaries}, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
