@@ -121,6 +121,19 @@
   .tpl-answer{font-size:12.5px;color:var(--slate);white-space:pre-wrap;line-height:1.6;max-height:120px;overflow-y:auto;}
   .tpl-copy{border:1px solid var(--line);border-radius:999px;padding:2px 10px !important;margin-left:auto;}
   .tpl-copy.copied{color:var(--good) !important;border-color:var(--good);}
+  .modal-overlay{position:fixed;inset:0;background:rgba(20,23,31,0.55);display:flex;
+    align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-box{background:var(--surface);border-radius:var(--card-radius);max-width:520px;width:100%;
+    max-height:88vh;overflow-y:auto;padding:22px 24px;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .modal-head h3{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:16px;margin:0;}
+  .modal-body label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin:14px 0 6px;}
+  .modal-body label:first-child{margin-top:0;}
+  .modal-body select, .modal-body input[type="text"], .modal-body input[type="file"], .modal-body textarea{
+    width:100%;font-family:'Inter','Pretendard',sans-serif;font-size:13px;padding:9px 12px;
+    border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
+  .modal-body textarea{resize:vertical;font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;}
+  .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
@@ -287,6 +300,7 @@
           <p class="sub"><span id="todayCount">0</span>건 <span id="todayNewHint"></span></p>
           <div style="display:flex;gap:8px;">
             <button class="link-btn tpl-toggle-btn" data-target="tpl-common">공통 대응 스크립트 ▾</button>
+            <button class="mark-seen-btn" id="openChatLogBtn">채팅 상담 기록</button>
             <button class="mark-seen-btn" id="markSeenBtn">확인 완료</button>
           </div>
         </div>
@@ -373,6 +387,42 @@
 </div>
 
 <div class="chart-tt" id="chartTooltip"></div>
+
+<div class="modal-overlay" id="chatLogOverlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>채팅 상담 기록</h3>
+      <button class="link-btn" id="closeChatLogBtn">닫기 ✕</button>
+    </div>
+    <div class="modal-body">
+      <label>채널</label>
+      <select id="chatChannel">
+        <option value="카카오톡">카카오톡</option>
+        <option value="네이버 톡톡">네이버 톡톡</option>
+      </select>
+
+      <label>제품 (선택)</label>
+      <select id="chatProduct"><option value="">선택 안 함</option></select>
+
+      <label>처리상태</label>
+      <select id="chatStatus"><option value="완료">완료</option><option value="대기">대기</option></select>
+
+      <div id="chatKakaoFields">
+        <label>카카오 비즈니스 대화창에서 "엑셀로 내보내기" 한 파일</label>
+        <input type="file" id="chatKakaoFile" accept=".xlsx">
+      </div>
+      <div id="chatNaverFields" style="display:none;">
+        <label>고객 닉네임 <span class="chip">대화창에 뜨는 이름 그대로 — 정확도를 위해 입력 권장</span></label>
+        <input type="text" id="chatCustomerName" placeholder="예: 김재희">
+        <label>대화 내용 <span class="chip">대화창에서 드래그로 전체 복사해서 그냥 붙여넣기</span></label>
+        <textarea id="chatRawText" rows="10" placeholder="여기에 붙여넣으세요 (Ctrl+V)"></textarea>
+      </div>
+
+      <p id="chatLogError" class="modal-error" style="display:none;"></p>
+      <button class="mark-seen-btn" id="submitChatLogBtn" style="width:100%;margin-top:12px;">저장</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let allData = [];
@@ -796,6 +846,74 @@ async function tryUnlock(pw) {
 
 document.getElementById('pwSubmit').addEventListener('click', () => tryUnlock(document.getElementById('pwInput').value));
 document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(document.getElementById('pwInput').value); });
+
+// ===== 채팅 상담 기록 모달 =====
+const chatLogOverlay = document.getElementById('chatLogOverlay');
+const chatChannelSel = document.getElementById('chatChannel');
+const chatKakaoFields = document.getElementById('chatKakaoFields');
+const chatNaverFields = document.getElementById('chatNaverFields');
+const chatLogError = document.getElementById('chatLogError');
+
+function openChatLog() {
+  const productSel = document.getElementById('chatProduct');
+  productSel.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
+  unique(allData, '제품').forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; productSel.appendChild(o); });
+  chatLogError.style.display = 'none';
+  document.getElementById('chatKakaoFile').value = '';
+  document.getElementById('chatCustomerName').value = '';
+  document.getElementById('chatRawText').value = '';
+  chatLogOverlay.style.display = 'flex';
+}
+function closeChatLog() { chatLogOverlay.style.display = 'none'; }
+function toggleChatFields() {
+  const isKakao = chatChannelSel.value === '카카오톡';
+  chatKakaoFields.style.display = isKakao ? '' : 'none';
+  chatNaverFields.style.display = isKakao ? 'none' : '';
+}
+document.getElementById('openChatLogBtn').addEventListener('click', openChatLog);
+document.getElementById('closeChatLogBtn').addEventListener('click', closeChatLog);
+chatLogOverlay.addEventListener('click', (e) => { if (e.target === chatLogOverlay) closeChatLog(); });
+chatChannelSel.addEventListener('change', toggleChatFields);
+toggleChatFields();
+
+document.getElementById('submitChatLogBtn').addEventListener('click', async () => {
+  chatLogError.style.display = 'none';
+  const channel = chatChannelSel.value;
+  const isKakao = channel === '카카오톡';
+  const fd = new FormData();
+  fd.append('channel', channel);
+  fd.append('product', document.getElementById('chatProduct').value);
+  fd.append('status', document.getElementById('chatStatus').value);
+  if (isKakao) {
+    const file = document.getElementById('chatKakaoFile').files[0];
+    if (!file) { chatLogError.textContent = '엑셀 파일을 선택해주세요.'; chatLogError.style.display = 'block'; return; }
+    fd.append('kakao_file', file);
+  } else {
+    const rawText = document.getElementById('chatRawText').value.trim();
+    if (!rawText) { chatLogError.textContent = '대화 내용을 붙여넣어주세요.'; chatLogError.style.display = 'block'; return; }
+    fd.append('raw_text', rawText);
+    fd.append('customer_name', document.getElementById('chatCustomerName').value.trim());
+  }
+
+  const btn = document.getElementById('submitChatLogBtn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const res = await fetch('/api/log-chat', {
+      method: 'POST',
+      headers: { 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
+    closeChatLog();
+    await loadData(sessionStorage.getItem('cs_dashboard_pw'));
+  } catch (e) {
+    chatLogError.textContent = e.message;
+    chatLogError.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = '저장';
+  }
+});
 
 const savedPw = sessionStorage.getItem('cs_dashboard_pw');
 if (savedPw) {

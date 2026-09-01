@@ -15,16 +15,22 @@ Vercel용 단일 Flask 앱.
 import os
 import re
 import json
+from datetime import datetime, timezone, timedelta
 
 from flask import Flask, Response, request, send_file
 import gspread
 from google.oauth2.service_account import Credentials
 
 import template_tags
+import kakao_export
+import naver_export
 
 app = Flask(__name__)
 
 CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
+CHAT_SHEET_HEADERS = ["문의ID", "날짜", "채널", "제품", "문제유형", "고객문의", "답변내용", "처리상태", "소분류"]
+CHAT_CHANNEL_PREFIX = {"카카오톡": "KKO", "네이버 톡톡": "NVT"}
+KST = timezone(timedelta(hours=9))
 
 
 def get_gspread_client():
@@ -210,5 +216,79 @@ def api_data():
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
     resp = Response(json.dumps({"records": records, "summaries": summaries, "templates": templates}, ensure_ascii=False), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+def next_chat_id(tab, prefix):
+    """채팅상담_CS의 기존 문의ID 중 이 채널(prefix)의 최대 번호 다음 값을 4자리로 반환."""
+    existing = tab.get_all_values()
+    max_num = 0
+    for row in existing[1:] if existing else []:
+        if row and row[0].startswith(prefix + "-"):
+            try:
+                max_num = max(max_num, int(row[0].split("-")[1]))
+            except (IndexError, ValueError):
+                continue
+    return f"{prefix}-{max_num + 1:04d}"
+
+
+@app.route("/api/log-chat", methods=["POST"])
+def api_log_chat():
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
+
+    # 카카오는 엑셀 파일 업로드(multipart), 네이버는 붙여넣은 텍스트(form 또는 json) 둘 다 지원
+    is_multipart = request.content_type and "multipart/form-data" in request.content_type
+    if is_multipart:
+        channel = request.form.get("channel", "")
+        product = request.form.get("product", "")
+        status = request.form.get("status", "완료")
+        customer_name = request.form.get("customer_name", "")
+        raw_text = request.form.get("raw_text", "")
+        kakao_file = request.files.get("kakao_file")
+    else:
+        body = request.get_json(silent=True) or {}
+        channel = body.get("channel", "")
+        product = body.get("product", "")
+        status = body.get("status", "완료")
+        customer_name = body.get("customer_name", "")
+        raw_text = body.get("raw_text", "")
+        kakao_file = None
+
+    if channel not in CHAT_CHANNEL_PREFIX:
+        return Response(json.dumps({"error": "잘못된 채널이에요."}), status=400, mimetype="application/json")
+
+    if kakao_file is not None:
+        inquiry = kakao_export.parse_kakao_export(kakao_file.read())
+    else:
+        inquiry = naver_export.parse_naver_text(raw_text, customer_name=customer_name)
+    inquiry = (inquiry or "").strip()
+    answer = ""
+
+    if not inquiry:
+        return Response(json.dumps({"error": "대화 내용을 읽지 못했어요. 형식을 확인해주세요."}), status=400, mimetype="application/json")
+
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+        try:
+            tab = spreadsheet.worksheet("채팅상담_CS")
+        except gspread.exceptions.WorksheetNotFound:
+            tab = spreadsheet.add_worksheet(title="채팅상담_CS", rows=1000, cols=len(CHAT_SHEET_HEADERS))
+            tab.append_row(CHAT_SHEET_HEADERS)
+
+        prefix = CHAT_CHANNEL_PREFIX[channel]
+        chat_id = next_chat_id(tab, prefix)
+        major, minor = classify_inquiry(inquiry)
+        date_str = datetime.now(KST).strftime("%Y-%m-%d")
+
+        row = [chat_id, date_str, channel, product, major, inquiry, answer, status, minor]
+        tab.append_row(row)
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps({"ok": True, "id": chat_id}, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
