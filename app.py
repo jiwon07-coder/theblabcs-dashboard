@@ -49,9 +49,14 @@ def mask_pii(text):
     return text
 
 
+_CANONICAL_PRODUCTS = {"오리지널", "오리지널 V2", "프로", "미니", "오리지널 케이블"}
+
+
 def normalize_product(text):
     if not text:
         return "미분류"
+    if text in _CANONICAL_PRODUCTS:
+        return text
     if "케이블" in text:
         return "오리지널 케이블"
     m = re.search(r"몰입의\s*방\s*(오리지널\s*V2|오리지널|프로|미니)", text)
