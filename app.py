@@ -20,9 +20,18 @@ from flask import Flask, Response, request, send_file
 import gspread
 from google.oauth2.service_account import Credentials
 
+import template_tags
+
 app = Flask(__name__)
 
 CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
+
+
+def get_gspread_client():
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    creds = Credentials.from_service_account_info(info, scopes=scopes)
+    return gspread.authorize(creds)
 
 
 def mask_pii(text):
@@ -115,10 +124,7 @@ def classify_inquiry(text):
 
 
 def fetch_records():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-    creds = Credentials.from_service_account_info(info, scopes=scopes)
-    gc = gspread.authorize(creds)
+    gc = get_gspread_client()
     spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
 
     all_records = []
@@ -153,10 +159,7 @@ def fetch_records():
 def fetch_summaries():
     """"주간요약" 탭(주-제품별 AI 한 줄 요약, 로컬에서 미리 계산해둔 값)을 읽어서
     "주|제품" 키의 dict로 반환. 이 탭이 없으면(아직 한 번도 안 돌았으면) 빈 dict."""
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-    creds = Credentials.from_service_account_info(info, scopes=scopes)
-    gc = gspread.authorize(creds)
+    gc = get_gspread_client()
     spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
 
     try:
@@ -178,6 +181,16 @@ def fetch_summaries():
     return result
 
 
+def fetch_templates():
+    """"CS 템플릿" 구글시트(별도 시트, 읽기 전용 공유)에서 소분류별 답변 템플릿을 가져온다.
+    TEMPLATE_SHEET_ID가 설정 안 돼있으면(아직 공유 전이면) 빈 리스트."""
+    template_sheet_id = os.environ.get("TEMPLATE_SHEET_ID")
+    if not template_sheet_id:
+        return []
+    gc = get_gspread_client()
+    return template_tags.load_templates(gc, template_sheet_id)
+
+
 @app.route("/")
 def index():
     return send_file("index.html")
@@ -192,9 +205,10 @@ def api_data():
     try:
         records = fetch_records()
         summaries = fetch_summaries()
+        templates = fetch_templates()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
-    resp = Response(json.dumps({"records": records, "summaries": summaries}, ensure_ascii=False), mimetype="application/json")
+    resp = Response(json.dumps({"records": records, "summaries": summaries, "templates": templates}, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
