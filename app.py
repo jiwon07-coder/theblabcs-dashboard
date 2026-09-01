@@ -286,8 +286,14 @@ def api_log_chat():
 
         prefix = CHAT_CHANNEL_PREFIX[channel]
         chat_id = next_chat_id(tab, prefix)
-        major, minor = classify_inquiry(inquiry)
         date_str = datetime.now(KST).strftime("%Y-%m-%d")
+
+        # 문제유형/소분류는 일부러 비워둔다. Vercel은 로컬 Ollama에 접근 못 해서 여기서
+        # 정확한 AI 분류가 불가능하고, 정규식으로 즉석에서 채우면 긴 대화 전문 특성상
+        # 자주 틀림. 대신 데스크탑의 reclassify_chat.py가 매일 이 빈 칸을 로컬 AI로
+        # 채워준다 (그때까진 app.py의 기존 fallback이 화면에만 임시로 추정치를 보여줌 -
+        # 시트엔 저장 안 되므로 나중에 AI가 정확히 채우는 데 문제 없음).
+        major, minor = "", ""
 
         row = [chat_id, date_str, channel, product, major, inquiry, answer, status, minor]
         tab.append_row(row)
