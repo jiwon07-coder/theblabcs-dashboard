@@ -104,6 +104,13 @@
   .badge[data-status="완료"]{background:rgba(47,143,130,0.14);color:var(--good);}
   .badge[data-status="대기"]{background:rgba(217,97,79,0.14);color:var(--coral);}
   .badge[data-status="확인 필요"]{background:rgba(232,163,61,0.16);color:#9A6A1E;}
+  .new-badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:9.5px;font-weight:700;
+    background:var(--amber);color:#1B1E27;letter-spacing:0.03em;margin-left:6px;vertical-align:middle;}
+  tr.row-new{background:rgba(232,163,61,0.07);}
+  .mark-seen-btn{background:var(--ink);color:var(--paper);border:none;border-radius:999px;padding:8px 16px;
+    font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .mark-seen-btn:hover{opacity:0.85;}
+  .todayHeadRow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
@@ -266,7 +273,10 @@
     <!-- ===== 탭 1: 오늘 처리 ===== -->
     <div class="tab-panel" id="tab-today">
       <div class="panel section" id="todayPanel">
-        <p class="sub"><span id="todayCount">0</span>건</p>
+        <div class="todayHeadRow">
+          <p class="sub"><span id="todayCount">0</span>건 <span id="todayNewHint"></span></p>
+          <button class="mark-seen-btn" id="markSeenBtn">여기까지 확인 완료</button>
+        </div>
         <table>
           <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>소분류</th><th>고객문의</th><th>상태</th></tr></thead>
           <tbody id="todayTableBody"></tbody>
@@ -351,6 +361,31 @@
 <script>
 let allData = [];
 let PRODUCT_SUMMARIES = {};
+let NEW_IDS = new Set();
+
+// ===== "새 문의" 추적 (이 브라우저에서 마지막으로 확인 완료한 문의ID 목록, localStorage) =====
+const SEEN_KEY = 'csdesk_seen_inquiry_ids';
+function getSeenIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }
+  catch (e) { return new Set(); }
+}
+function computeNewIds() {
+  const seen = getSeenIds();
+  NEW_IDS = new Set(
+    allData.filter(r => r['처리상태'] !== '완료' && r['문의ID'] && !seen.has(r['문의ID']))
+      .map(r => r['문의ID'])
+  );
+}
+function markAllSeen() {
+  try {
+    const ids = allData.filter(r => r['문의ID']).map(r => r['문의ID']);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(ids));
+  } catch (e) {}
+  NEW_IDS = new Set();
+  renderToday();
+  renderHome();
+}
+function newBadge(id) { return NEW_IDS.has(id) ? '<span class="new-badge">NEW</span>' : ''; }
 
 const TYPE_ORDER = ['사용 방법', '제품 불량', '배송문의', '기타 문의'];
 const TYPE_COLOR = {'사용 방법':'#E8A33D', '제품 불량':'#D9614F', '배송문의':'#2F8F82', '기타 문의':'#5B6274'};
@@ -363,6 +398,7 @@ async function loadData(pw) {
     const payload = await res.json();
     allData = payload.records;
     PRODUCT_SUMMARIES = payload.summaries || {};
+    computeNewIds();
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('totalCount').textContent = allData.length;
     renderToday();
@@ -437,6 +473,8 @@ function renderHome() {
   const checkNeeded = allData.filter(r => r['처리상태'] === '확인 필요');
   document.getElementById('homeTodayValue').textContent = pending.length;
   document.getElementById('homeCheckValue').textContent = checkNeeded.length;
+  const todayHintEl = document.querySelector('#homeTodayCard .stat-hint');
+  todayHintEl.textContent = NEW_IDS.size ? `새 문의 ${NEW_IDS.size}건 포함 · 바로 처리하러 가기 →` : '바로 처리하러 가기 →';
 
   const weeks = [...new Set(allData.map(r => getMonday(r['날짜'])))].sort();
   const thisWeek = weeks[weeks.length-1];
@@ -457,8 +495,8 @@ function renderHome() {
   if (!oldest.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
   emptyEl.style.display = 'none';
   tbody.innerHTML = oldest.map(r => `
-    <tr>
-      <td class="chip">${r['날짜']||''}</td>
+    <tr class="${NEW_IDS.has(r['문의ID']) ? 'row-new' : ''}">
+      <td class="chip">${r['날짜']||''}${newBadge(r['문의ID'])}</td>
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
@@ -492,14 +530,18 @@ function renderToday() {
   const sbCount = document.getElementById('sbTodayCount');
   sbCount.textContent = rows.length;
   sbCount.classList.toggle('zero', rows.length === 0);
+
+  const newHintEl = document.getElementById('todayNewHint');
+  newHintEl.textContent = NEW_IDS.size ? `· 새 문의 ${NEW_IDS.size}건` : '';
+
   const tbody = document.getElementById('todayTableBody');
   const emptyEl = document.getElementById('todayEmpty');
   if (!rows.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
   emptyEl.style.display = 'none';
   const sorted = rows.slice().sort((a, b) => (a['날짜']||'').localeCompare(b['날짜']||''));
   tbody.innerHTML = sorted.map(r => `
-    <tr>
-      <td class="chip">${r['날짜']||''}</td>
+    <tr class="${NEW_IDS.has(r['문의ID']) ? 'row-new' : ''}">
+      <td class="chip">${r['날짜']||''}${newBadge(r['문의ID'])}</td>
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
@@ -508,6 +550,7 @@ function renderToday() {
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 }
+document.getElementById('markSeenBtn').addEventListener('click', markAllSeen);
 
 function renderWeekKpi() {
   const weeks = [...new Set(allData.map(r => getMonday(r['날짜'])))].sort();
