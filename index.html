@@ -137,6 +137,7 @@
   .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
+  .content-cell > div{max-height:90px;overflow-y:auto;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
 
   .filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
@@ -703,7 +704,7 @@ function renderHome() {
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
-      <td class="content-cell">${r['고객문의']||''}</td>
+      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 }
@@ -754,7 +755,7 @@ function renderToday() {
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
       <td class="chip">${r['소분류']||''}</td>
-      <td class="content-cell">${r['고객문의']||''}</td>
+      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
       <td><button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button></td>
     </tr>
@@ -1026,8 +1027,8 @@ function renderTable() {
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
       <td class="chip">${r['소분류']||''}</td>
-      <td class="content-cell">${r['고객문의']||''}</td>
-      <td class="content-cell">${r['답변내용']||''}</td>
+      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
+      <td class="content-cell"><div>${r['답변내용']||''}</div></td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 
