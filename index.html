@@ -823,9 +823,7 @@ function renderChat() {
   if (!rows.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
   emptyEl.style.display = 'none';
   list.innerHTML = rows.map((r, i) => {
-    const matched = templatesFor(r['소분류']);
     const threadId = 'chat-thread-' + i;
-    const tplId = 'chat-tpl-' + i;
     return `
     <div class="chat-card ${NEW_IDS.has(r['문의ID']) ? 'row-new' : ''}">
       <div class="chat-card-head">
@@ -839,9 +837,7 @@ function renderChat() {
       <div class="chat-thread" id="${threadId}" style="display:none;">${renderChatBubbles(r['고객문의'])}</div>
       <div class="chat-card-foot">
         <button class="link-btn tpl-toggle-btn" data-target="${threadId}">대화 전체 보기 ▾</button>
-        <button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button>
       </div>
-      <div class="tpl-panel" id="${tplId}" style="display:none;">${renderTemplateList(matched)}</div>
     </div>`;
   }).join('');
 }
