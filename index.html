@@ -199,7 +199,7 @@
 
 <div id="pwGate" style="
   position:fixed;inset:0;background:var(--paper);z-index:9999;
-  display:flex;align-items:center;justify-content:center;">
+  display:none;align-items:center;justify-content:center;">
   <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:36px 32px;width:320px;text-align:center;">
     <p style="font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--slate);margin:0 0 8px;">CS Control Desk</p>
     <h2 style="font-family:'Space Grotesk','Pretendard',sans-serif;font-size:18px;margin:0 0 20px;color:var(--ink);">비밀번호를 입력하세요</h2>
@@ -209,6 +209,26 @@
     <p id="pwError" style="color:var(--coral);font-size:12px;margin-top:10px;display:none;">비밀번호가 올바르지 않아요.</p>
   </div>
 </div>
+
+<div id="loadingGate" style="
+  position:fixed;inset:0;background:var(--paper);z-index:9998;
+  display:none;align-items:center;justify-content:center;">
+  <p style="font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;letter-spacing:0.08em;color:var(--slate);">불러오는 중...</p>
+</div>
+
+<script>
+  // 새로고침 시 이미 인증된 사용자에게 비밀번호창이 다시 번쩍이지 않도록,
+  // 저장된 비밀번호 유무에 따라 두 오버레이 중 하나만 먼저 보여준다.
+  (function () {
+    var gate = document.getElementById('pwGate');
+    var loading = document.getElementById('loadingGate');
+    if (sessionStorage.getItem('cs_dashboard_pw')) {
+      loading.style.display = 'flex';
+    } else {
+      gate.style.display = 'flex';
+    }
+  })();
+</script>
 
 <div id="loadError" style="display:none;" class="empty-state">
   <p><strong>데이터를 불러올 수 없어요.</strong></p>
@@ -923,11 +943,13 @@ function render() {
 async function tryUnlock(pw) {
   document.getElementById('pwError').style.display = 'none';
   const result = await loadData(pw);
+  document.getElementById('loadingGate').style.display = 'none';
   if (result === 'ok') {
     sessionStorage.setItem('cs_dashboard_pw', pw);
     document.getElementById('pwGate').style.display = 'none';
   } else if (result === 'unauthorized') {
     sessionStorage.removeItem('cs_dashboard_pw');
+    document.getElementById('pwGate').style.display = 'flex';
     document.getElementById('pwError').style.display = 'block';
   }
 }
