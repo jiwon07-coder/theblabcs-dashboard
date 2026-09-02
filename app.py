@@ -256,6 +256,7 @@ def api_log_chat():
         status = request.form.get("status", "완료")
         customer_name = request.form.get("customer_name", "")
         raw_text = request.form.get("raw_text", "")
+        chat_date = request.form.get("date", "")
         kakao_file = request.files.get("kakao_file")
     else:
         body = request.get_json(silent=True) or {}
@@ -264,15 +265,19 @@ def api_log_chat():
         status = body.get("status", "완료")
         customer_name = body.get("customer_name", "")
         raw_text = body.get("raw_text", "")
+        chat_date = body.get("date", "")
         kakao_file = None
 
     if channel not in CHAT_CHANNEL_PREFIX:
         return Response(json.dumps({"error": "잘못된 채널이에요."}), status=400, mimetype="application/json")
 
+    start_date = None
     if kakao_file is not None:
-        inquiry = kakao_export.parse_kakao_export(kakao_file.read())
+        inquiry, start_date = kakao_export.parse_kakao_export(kakao_file.read())
     else:
         inquiry = naver_export.parse_naver_text(raw_text, customer_name=customer_name)
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", chat_date or ""):
+            start_date = chat_date
     inquiry = (inquiry or "").strip()
     answer = ""
 
@@ -290,7 +295,7 @@ def api_log_chat():
 
         prefix = CHAT_CHANNEL_PREFIX[channel]
         chat_id = next_chat_id(tab, prefix)
-        date_str = datetime.now(KST).strftime("%Y-%m-%d")
+        date_str = start_date or datetime.now(KST).strftime("%Y-%m-%d")
 
         # 문제유형/소분류는 일부러 비워둔다. Vercel은 로컬 Ollama에 접근 못 해서 여기서
         # 정확한 AI 분류가 불가능하고, 정규식으로 즉석에서 채우면 긴 대화 전문 특성상

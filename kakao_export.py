@@ -31,8 +31,10 @@ def _is_auto_reply(text):
 
 
 def parse_kakao_export(file_bytes):
-    """반환: 사람이 읽기 좋은 "역할: 메시지" 형태로 합친 대화 전문(문자열).
-    파싱 실패/빈 파일이면 빈 문자열."""
+    """반환: (대화 전문(문자열), 상담 시작일 "YYYY-MM-DD" 또는 None) 튜플.
+    대화 전문은 사람이 읽기 좋은 "역할: 메시지" 형태로 합침.
+    상담 시작일은 대화의 첫 메시지에 찍힌 DATE 값 기준(업로드 시점이 아님).
+    파싱 실패/빈 파일이면 ("", None)."""
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
 
     target_sheet = None
@@ -43,9 +45,10 @@ def parse_kakao_export(file_bytes):
             target_sheet = ws
             break
     if target_sheet is None:
-        return ""
+        return "", None
 
     lines = []
+    start_date = None
     for row in target_sheet.iter_rows(min_row=2, values_only=True):
         if not row or len(row) < 3:
             continue
@@ -56,10 +59,12 @@ def parse_kakao_export(file_bytes):
         time_str = ""
         if date_val is not None:
             try:
+                if start_date is None:
+                    start_date = date_val.strftime("%Y-%m-%d")
                 time_str = date_val.strftime("%m/%d %H:%M")
             except AttributeError:
                 time_str = str(date_val)
         prefix = f"[{time_str}] " if time_str else ""
         lines.append(f"{prefix}{role}: {message}")
 
-    return "\n".join(lines)
+    return "\n".join(lines), start_date

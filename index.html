@@ -468,6 +468,8 @@
       <div id="chatNaverFields" style="display:none;">
         <label>고객 닉네임 <span class="chip">대화창에 뜨는 이름 그대로 — 정확도를 위해 입력 권장</span></label>
         <input type="text" id="chatCustomerName" placeholder="예: 김재희">
+        <label>상담 시작일 <span class="chip">네이버 톡톡은 붙여넣은 텍스트에 날짜가 없어서 직접 입력</span></label>
+        <input type="date" id="chatDate">
         <label>대화 내용 <span class="chip">대화창에서 드래그로 전체 복사해서 그냥 붙여넣기</span></label>
         <textarea id="chatRawText" rows="10" placeholder="여기에 붙여넣으세요 (Ctrl+V)"></textarea>
       </div>
@@ -972,6 +974,7 @@ function openChatLog() {
   document.getElementById('chatKakaoFile').value = '';
   document.getElementById('chatCustomerName').value = '';
   document.getElementById('chatRawText').value = '';
+  document.getElementById('chatDate').value = new Date().toLocaleDateString('sv-SE', {timeZone: 'Asia/Seoul'});
   chatLogOverlay.style.display = 'flex';
 }
 function closeChatLog() { chatLogOverlay.style.display = 'none'; }
@@ -1003,6 +1006,7 @@ document.getElementById('submitChatLogBtn').addEventListener('click', async () =
     if (!rawText) { chatLogError.textContent = '대화 내용을 붙여넣어주세요.'; chatLogError.style.display = 'block'; return; }
     fd.append('raw_text', rawText);
     fd.append('customer_name', document.getElementById('chatCustomerName').value.trim());
+    fd.append('date', document.getElementById('chatDate').value);
   }
 
   const btn = document.getElementById('submitChatLogBtn');
