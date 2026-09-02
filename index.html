@@ -834,7 +834,7 @@ function renderChat() {
         <span class="chip">${r['문제유형']||''}${r['소분류'] ? ' · '+r['소분류'] : ''}</span>
         <span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span>
       </div>
-      <p class="chat-preview">${chatPreview(r['고객문의'])}</p>
+      <p class="chat-preview">${r['AI요약'] || chatPreview(r['고객문의'])}</p>
       <div class="chat-thread" id="${threadId}" style="display:none;">${renderChatBubbles(r['고객문의'])}</div>
       <div class="chat-card-foot">
         <button class="link-btn tpl-toggle-btn" data-target="${threadId}">대화 전체 보기 ▾</button>

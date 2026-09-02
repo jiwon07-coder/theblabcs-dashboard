@@ -28,7 +28,7 @@ import naver_export
 app = Flask(__name__)
 
 CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
-CHAT_SHEET_HEADERS = ["문의ID", "날짜", "채널", "제품", "문제유형", "고객문의", "답변내용", "처리상태", "소분류"]
+CHAT_SHEET_HEADERS = ["문의ID", "날짜", "채널", "제품", "문제유형", "고객문의", "답변내용", "처리상태", "소분류", "AI요약"]
 CHAT_CHANNEL_PREFIX = {"카카오톡": "KKO", "네이버 톡톡": "NVT"}
 KST = timezone(timedelta(hours=9))
 RECENT_DAYS = 92  # 대시보드에는 최근 3개월치만 보여줌 (그 이전 데이터는 시트엔 그대로 남아있음)
@@ -297,14 +297,14 @@ def api_log_chat():
         chat_id = next_chat_id(tab, prefix)
         date_str = start_date or datetime.now(KST).strftime("%Y-%m-%d")
 
-        # 문제유형/소분류는 일부러 비워둔다. Vercel은 로컬 Ollama에 접근 못 해서 여기서
-        # 정확한 AI 분류가 불가능하고, 정규식으로 즉석에서 채우면 긴 대화 전문 특성상
+        # 문제유형/소분류/AI요약은 일부러 비워둔다. Vercel은 로컬 Ollama에 접근 못 해서 여기서
+        # 정확한 AI 분류/요약이 불가능하고, 정규식으로 즉석에서 채우면 긴 대화 전문 특성상
         # 자주 틀림. 대신 데스크탑의 reclassify_chat.py가 매일 이 빈 칸을 로컬 AI로
         # 채워준다 (그때까진 app.py의 기존 fallback이 화면에만 임시로 추정치를 보여줌 -
         # 시트엔 저장 안 되므로 나중에 AI가 정확히 채우는 데 문제 없음).
-        major, minor = "", ""
+        major, minor, ai_summary = "", "", ""
 
-        row = [chat_id, date_str, channel, product, major, inquiry, answer, status, minor]
+        row = [chat_id, date_str, channel, product, major, inquiry, answer, status, minor, ai_summary]
         tab.append_row(row)
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
