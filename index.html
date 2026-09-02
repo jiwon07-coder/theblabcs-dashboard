@@ -383,6 +383,7 @@
           <tbody id="tableBody"></tbody>
         </table>
         </div>
+        <button class="link-btn" id="tableShowMoreBtn" style="display:none;margin-top:10px;"></button>
       </div>
     </div>
 
@@ -1008,10 +1009,17 @@ function renderAnalysis() {
   renderProductChart(rows);
 }
 
+const TABLE_PAGE_SIZE = 10;
+let tableShowCount = TABLE_PAGE_SIZE;
+
 function render() {
-  const rows = getFiltered();
+  tableShowCount = TABLE_PAGE_SIZE;
+  renderTable();
+}
+function renderTable() {
+  const rows = getFiltered().slice().reverse();
   const tbody = document.getElementById('tableBody');
-  tbody.innerHTML = rows.slice().reverse().slice(0,20).map(r => `
+  tbody.innerHTML = rows.slice(0, tableShowCount).map(r => `
     <tr>
       <td class="chip">${r['날짜']||''}</td>
       <td>${r['채널']||''}</td>
@@ -1022,7 +1030,20 @@ function render() {
       <td class="content-cell">${r['답변내용']||''}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
+
+  const moreBtn = document.getElementById('tableShowMoreBtn');
+  const remaining = rows.length - tableShowCount;
+  if (remaining > 0) {
+    moreBtn.style.display = '';
+    moreBtn.textContent = `더보기 (${remaining}건 더 있음) ▾`;
+  } else {
+    moreBtn.style.display = 'none';
+  }
 }
+document.getElementById('tableShowMoreBtn').addEventListener('click', () => {
+  tableShowCount += TABLE_PAGE_SIZE;
+  renderTable();
+});
 
 async function tryUnlock(pw) {
   document.getElementById('pwError').style.display = 'none';
