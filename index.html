@@ -335,16 +335,15 @@
         </button>
       </div>
 
-      <div class="panel section">
+      <div class="panel section" id="homeStalePanel" style="display:none;">
         <div class="panel-head-row">
-          <h3>가장 오래 기다린 문의</h3>
+          <h3>⚠ 처리 지연된 문의</h3>
           <button class="link-btn" data-goto="today">전체 보기 →</button>
         </div>
         <table>
           <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>문제유형</th><th>고객문의</th><th>상태</th></tr></thead>
           <tbody id="homePreviewBody"></tbody>
         </table>
-        <p id="homePreviewEmpty" class="empty-state" style="display:none;">처리할 문의가 없어요. 다 처리하셨네요!</p>
       </div>
     </div>
 
@@ -682,12 +681,22 @@ function renderHome() {
     hintEl.textContent = `${arrow} 지난주 대비 ${Math.abs(diff)}건 · 주간 분석 보기 →`;
   }
 
-  const tbody = document.getElementById('homePreviewBody');
-  const emptyEl = document.getElementById('homePreviewEmpty');
-  const oldest = pending.slice().sort((a,b) => (a['날짜']||'').localeCompare(b['날짜']||'')).slice(0,3);
-  if (!oldest.length) { tbody.innerHTML = ''; emptyEl.style.display = 'block'; return; }
-  emptyEl.style.display = 'none';
-  tbody.innerHTML = oldest.map(r => `
+  // "가장 오래 기다린 문의"는 매일 다 처리하는 워크플로에서는 거의 항상 "오늘 것"이라
+  // 별 정보가 없음 -> 평소엔 숨기고, 2일 이상 지난(=뭔가 놓친) 문의가 실제로 있을 때만
+  // 경고성으로 보여줌.
+  const stalePanel = document.getElementById('homeStalePanel');
+  const staleCutoffDate = new Date();
+  staleCutoffDate.setDate(staleCutoffDate.getDate() - 2);
+  const staleCutoff = staleCutoffDate.toISOString().slice(0, 10);
+  const stale = pending.filter(r => (r['날짜']||'') < staleCutoff)
+    .sort((a,b) => (a['날짜']||'').localeCompare(b['날짜']||''));
+
+  if (!stale.length) {
+    stalePanel.style.display = 'none';
+    return;
+  }
+  stalePanel.style.display = '';
+  document.getElementById('homePreviewBody').innerHTML = stale.slice(0, 5).map(r => `
     <tr class="${NEW_IDS.has(r['문의ID']) ? 'row-new' : ''}">
       <td class="chip">${r['날짜']||''}${newBadge(r['문의ID'])}</td>
       <td>${r['채널']||''}</td>
