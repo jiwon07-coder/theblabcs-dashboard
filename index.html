@@ -137,7 +137,13 @@
   .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
-  .content-cell > div{max-height:90px;overflow-y:auto;}
+  .cc-wrap{display:flex;align-items:flex-start;gap:4px;}
+  .cc-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1;}
+  .cc-wrap.expanded .cc-text{display:block;-webkit-line-clamp:unset;overflow:visible;}
+  .cc-toggle{flex:none;background:none;border:none;color:var(--slate);cursor:pointer;padding:1px 2px;
+    line-height:1;font-size:11px;opacity:0.6;}
+  .cc-toggle:hover{opacity:1;}
+  .cc-wrap.expanded .cc-toggle{transform:rotate(180deg);}
   .empty-state{text-align:center;padding:40px 20px;color:var(--slate);font-size:13px;}
 
   .filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
@@ -540,6 +546,13 @@ function markAllSeen() {
   renderChat();
 }
 function newBadge(id) { return NEW_IDS.has(id) ? '<span class="new-badge">NEW</span>' : ''; }
+function collapsibleCell(text) {
+  return `<div class="cc-wrap"><div class="cc-text">${text || ''}</div><button class="cc-toggle" aria-label="펼치기">▾</button></div>`;
+}
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.cc-toggle');
+  if (btn) btn.closest('.cc-wrap').classList.toggle('expanded');
+});
 
 // ===== 답변 템플릿 매칭 (소분류 기준, "CS 템플릿" 시트에서 가져옴) =====
 function templatesFor(minor) { return TEMPLATES.filter(t => t['소분류'] === minor); }
@@ -704,7 +717,7 @@ function renderHome() {
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
-      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
+      <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 }
@@ -755,7 +768,7 @@ function renderToday() {
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
       <td class="chip">${r['소분류']||''}</td>
-      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
+      <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
       <td><button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button></td>
     </tr>
@@ -1027,8 +1040,8 @@ function renderTable() {
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
       <td class="chip">${r['소분류']||''}</td>
-      <td class="content-cell"><div>${r['고객문의']||''}</div></td>
-      <td class="content-cell"><div>${r['답변내용']||''}</div></td>
+      <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
+      <td class="content-cell">${collapsibleCell(r['답변내용'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
     </tr>`).join('');
 
