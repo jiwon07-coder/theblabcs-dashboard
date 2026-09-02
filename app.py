@@ -31,6 +31,7 @@ CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
 CHAT_SHEET_HEADERS = ["문의ID", "날짜", "채널", "제품", "문제유형", "고객문의", "답변내용", "처리상태", "소분류"]
 CHAT_CHANNEL_PREFIX = {"카카오톡": "KKO", "네이버 톡톡": "NVT"}
 KST = timezone(timedelta(hours=9))
+RECENT_DAYS = 92  # 대시보드에는 최근 3개월치만 보여줌 (그 이전 데이터는 시트엔 그대로 남아있음)
 
 
 def get_gspread_client():
@@ -164,6 +165,9 @@ def fetch_records():
                 r["문제유형"] = major
                 r["소분류"] = minor
         all_records.extend(records)
+
+    cutoff = (datetime.now(KST) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
+    all_records = [r for r in all_records if r.get("날짜", "") >= cutoff]
     return all_records
 
 
