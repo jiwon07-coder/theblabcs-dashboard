@@ -9,20 +9,20 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
 <style>
   :root{
-    --ink:#14171F; --paper:#F6F4EF; --surface:#FFFFFF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
+    --ink:#14171F; --paper:#F4F4F5; --surface:#FFFFFF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
     --amber:#E8A33D; --teal:#2F8F82; --coral:#D9614F; --card-radius: 14px;
-    --good:#2F8F82; --sidebar:#1B1E27; --sidebar-ink:#F1EFEA; --sidebar-line: rgba(241,239,234,0.10);
-    --sidebar-active: rgba(232,163,61,0.16);
+    --good:#2F8F82; --sidebar:#1B1E27; --sidebar-ink:#EDEDEF; --sidebar-line: rgba(237,237,239,0.10);
+    --neon-green:#39FF14; --sidebar-active: rgba(57,255,20,0.16);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --ink:#F1EFEA; --paper:#15171C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(241,239,234,0.12);
-      --sidebar:#0F1116; --sidebar-line: rgba(241,239,234,0.08);
+      --ink:#EDEDEF; --paper:#17181C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(237,237,239,0.12);
+      --sidebar:#0F1116; --sidebar-line: rgba(237,237,239,0.08);
     }
   }
   :root[data-theme="dark"]{
-    --ink:#F1EFEA; --paper:#15171C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(241,239,234,0.12);
-    --sidebar:#0F1116; --sidebar-line: rgba(241,239,234,0.08);
+    --ink:#EDEDEF; --paper:#17181C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(237,237,239,0.12);
+    --sidebar:#0F1116; --sidebar-line: rgba(237,237,239,0.08);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);
@@ -42,11 +42,11 @@
   .sb-brand{padding:22px 18px 18px 20px;border-bottom:1px solid var(--sidebar-line);
     display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
   .sb-eyebrow{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
-    color:rgba(241,239,234,0.5);margin:0 0 4px;}
+    color:rgba(237,237,239,0.5);margin:0 0 4px;}
   .sb-title{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:17px;font-weight:600;margin:0;letter-spacing:-0.01em;}
-  .sb-close{background:none;border:none;color:rgba(241,239,234,0.55);cursor:pointer;padding:4px;
+  .sb-close{background:none;border:none;color:rgba(237,237,239,0.55);cursor:pointer;padding:4px;
     border-radius:6px;line-height:1;flex:none;margin-top:1px;}
-  .sb-close:hover{color:var(--sidebar-ink);background:rgba(241,239,234,0.08);}
+  .sb-close:hover{color:var(--sidebar-ink);background:rgba(237,237,239,0.08);}
   .sb-close svg{display:block;width:16px;height:16px;}
 
   /* 메뉴 버튼: 사이드바 닫혀있을 때 본문 좌상단에 고정 */
@@ -59,20 +59,21 @@
   .menu-btn.hide{opacity:0;pointer-events:none;}
   .sb-nav{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:3px;}
   .sb-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;
-    border-radius:9px;cursor:pointer;background:none;border:none;color:rgba(241,239,234,0.72);
+    border-radius:9px;cursor:pointer;background:none;border:none;color:rgba(237,237,239,0.72);
     font-family:'Inter','Pretendard',sans-serif;font-size:13.5px;font-weight:500;text-align:left;width:100%;
     transition:background .12s, color .12s;}
-  .sb-item:hover{background:rgba(241,239,234,0.06);color:var(--sidebar-ink);}
-  .sb-item.active{background:var(--sidebar-active);color:#F2C879;}
+  .sb-item:hover{background:rgba(237,237,239,0.06);color:var(--sidebar-ink);}
+  .sb-item.active{background:var(--sidebar-active);color:var(--neon-green);}
   .sb-item .sb-label{display:flex;align-items:center;gap:9px;}
-  .sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.55;flex:none;}
+  .sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0;flex:none;}
+  .sb-item.active .sb-dot{opacity:1;}
   .sb-count{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;padding:2px 7px;border-radius:999px;
     background:rgba(217,97,79,0.22);color:#F0A99C;font-variant-numeric:tabular-nums;}
-  .sb-item.active .sb-count{background:rgba(232,163,61,0.28);color:#F2C879;}
-  .sb-count.zero{background:rgba(241,239,234,0.08);color:rgba(241,239,234,0.4);}
+  .sb-item.active .sb-count{background:rgba(57,255,20,0.28);color:var(--neon-green);}
+  .sb-count.zero{background:rgba(237,237,239,0.08);color:rgba(237,237,239,0.4);}
   .sb-foot{padding:16px 20px 20px;border-top:1px solid var(--sidebar-line);
-    font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;color:rgba(241,239,234,0.42);line-height:1.7;}
-  .sb-foot strong{color:rgba(241,239,234,0.75);font-weight:500;font-variant-numeric:tabular-nums;}
+    font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;color:rgba(237,237,239,0.42);line-height:1.7;}
+  .sb-foot strong{color:rgba(237,237,239,0.75);font-weight:500;font-variant-numeric:tabular-nums;}
 
   /* ===== 본문 ===== */
   .main{min-width:0;max-width:1100px;margin:0 auto;padding:30px 34px 60px;padding-left:76px;}
@@ -99,7 +100,7 @@
     text-transform:uppercase;color:var(--slate);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--line);}
   tbody td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
   tbody tr:hover{background:rgba(20,23,31,0.03);}
-  :root:not([data-theme="light"]) tbody tr:hover, [data-theme="dark"] tbody tr:hover { background:rgba(241,239,234,0.04); }
+  :root:not([data-theme="light"]) tbody tr:hover, [data-theme="dark"] tbody tr:hover { background:rgba(237,237,239,0.04); }
   .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;}
   .badge[data-status="완료"]{background:rgba(47,143,130,0.14);color:var(--good);}
   .badge[data-status="대기"]{background:rgba(217,97,79,0.14);color:var(--coral);}
@@ -268,7 +269,7 @@
     <div class="sb-brand">
       <div>
         <p class="sb-eyebrow">CS Control Desk</p>
-        <h1 class="sb-title">문의 관리</h1>
+        <h1 class="sb-title">더비랩 고객 문의 관리</h1>
       </div>
       <button class="sb-close" id="sbClose" aria-label="메뉴 닫기">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>
