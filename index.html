@@ -239,6 +239,9 @@
         <span class="sb-label"><span class="sb-dot"></span>채팅 상담</span>
         <span class="sb-count" id="sbChatCount">0</span>
       </button>
+      <button class="sb-item" data-tab="templates">
+        <span class="sb-label"><span class="sb-dot"></span>템플릿</span>
+      </button>
       <button class="sb-item" data-tab="weekly">
         <span class="sb-label"><span class="sb-dot"></span>주간 분석</span>
         <span class="sb-count" id="sbWeekCount">0</span>
@@ -350,6 +353,17 @@
         </table>
         </div>
         <p id="chatEmpty" class="empty-state" style="display:none;">기록된 채팅 상담이 없어요.</p>
+      </div>
+    </div>
+
+    <!-- ===== 탭: 템플릿 ===== -->
+    <div class="tab-panel" id="tab-templates">
+      <div class="panel section">
+        <input type="text" id="tplSearch" placeholder="검색 (제품, 질문, 답변 내용으로 찾기)"
+          style="width:100%;font-family:'Inter','Pretendard',sans-serif;font-size:13px;padding:10px 14px;
+          border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);margin-bottom:14px;">
+        <p class="sub"><span id="tplResultCount">0</span>개</p>
+        <div id="tplSearchResults"></div>
       </div>
     </div>
 
@@ -479,8 +493,8 @@ function newBadge(id) { return NEW_IDS.has(id) ? '<span class="new-badge">NEW</s
 function templatesFor(minor) { return TEMPLATES.filter(t => t['소분류'] === minor); }
 function commonTemplates() { return TEMPLATES.filter(t => t['소분류'] === '공통'); }
 function escapeAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
-function renderTemplateList(list) {
-  if (!list.length) return '<p class="empty-state" style="padding:6px 0;">이 소분류에 매칭되는 템플릿이 아직 없어요.</p>';
+function renderTemplateList(list, emptyMsg) {
+  if (!list.length) return `<p class="empty-state" style="padding:6px 0;">${emptyMsg || '이 소분류에 매칭되는 템플릿이 아직 없어요.'}</p>`;
   return list.map(t => `
     <div class="tpl-item">
       <div class="tpl-item-head">
@@ -575,6 +589,7 @@ const TAB_META = {
   home: { eyebrow: 'Home', title: '홈' },
   today: { eyebrow: 'Today', title: '오늘 처리해야 할 문의' },
   chat: { eyebrow: 'Chat', title: '채팅 상담 기록' },
+  templates: { eyebrow: 'Templates', title: '답변 템플릿' },
   weekly: { eyebrow: 'Weekly', title: '주간 문의 분석' },
   products: { eyebrow: 'Products', title: '제품별 분석' },
 };
@@ -585,6 +600,7 @@ function switchTab(tab) {
   document.getElementById('pageTitle').textContent = TAB_META[tab].title;
   if (tab === 'weekly') { renderAnalysis(); }
   if (tab === 'products') { renderProductRank(); }
+  if (tab === 'templates') { renderTemplatesTab(); }
 }
 document.getElementById('sbNav').addEventListener('click', (e) => {
   const btn = e.target.closest('.sb-item');
@@ -685,6 +701,15 @@ function renderToday() {
   }).join('');
 }
 document.getElementById('markSeenBtn').addEventListener('click', markAllSeen);
+
+function renderTemplatesTab() {
+  const q = (document.getElementById('tplSearch').value || '').trim().toLowerCase();
+  const filtered = !q ? TEMPLATES : TEMPLATES.filter(t =>
+    ['제품', '소분류', '질문', '답변'].some(k => (t[k] || '').toLowerCase().includes(q)));
+  document.getElementById('tplResultCount').textContent = filtered.length;
+  document.getElementById('tplSearchResults').innerHTML = renderTemplateList(filtered, '검색 결과가 없어요.');
+}
+document.getElementById('tplSearch').addEventListener('input', renderTemplatesTab);
 
 function chatPreview(text, max = 60) {
   const t = (text || '').replace(/\s+/g, ' ').trim();
