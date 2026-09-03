@@ -212,6 +212,23 @@ def fetch_last_data_load():
     return None
 
 
+def fetch_reviews():
+    """"리뷰" 탭(cafe24_review_sync.py가 채워둠)을 읽어서 반환. 리뷰는 문의와 달리
+    최근 3개월 필터(RECENT_DAYS)를 적용하지 않음 - 광고소재 후보를 찾는 용도라 오래된
+    좋은 리뷰도 계속 보여야 함."""
+    gc = get_gspread_client()
+    spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+    try:
+        tab = spreadsheet.worksheet("리뷰")
+    except gspread.exceptions.WorksheetNotFound:
+        return []
+    values = tab.get_all_values()
+    if not values:
+        return []
+    headers = values[0]
+    return [dict(zip(headers, row)) for row in values[1:] if row]
+
+
 def fetch_templates():
     """"CS 템플릿" 구글시트(별도 시트, 읽기 전용 공유)에서 소분류별 답변 템플릿을 가져온다.
     TEMPLATE_SHEET_ID가 설정 안 돼있으면(아직 공유 전이면) 빈 리스트."""
@@ -238,13 +255,46 @@ def api_data():
         summaries = fetch_summaries()
         templates = fetch_templates()
         last_data_load = fetch_last_data_load()
+        reviews = fetch_reviews()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
     resp = Response(json.dumps({
         "records": records, "summaries": summaries, "templates": templates,
-        "lastDataLoad": last_data_load,
+        "lastDataLoad": last_data_load, "reviews": reviews,
     }, ensure_ascii=False), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/toggle-review-ad", methods=["POST"])
+def api_toggle_review_ad():
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
+
+    body = request.get_json(silent=True) or {}
+    review_id = body.get("reviewId", "")
+    adopted = bool(body.get("adopted"))
+    if not review_id:
+        return Response(json.dumps({"error": "reviewId가 필요해요."}), status=400, mimetype="application/json")
+
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+        tab = spreadsheet.worksheet("리뷰")
+        values = tab.get_all_values()
+        headers = values[0]
+        id_idx = headers.index("리뷰ID")
+        ad_idx = headers.index("광고소재채택")
+        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[id_idx] == review_id), None)
+        if row_num is None:
+            return Response(json.dumps({"error": "해당 리뷰를 찾을 수 없어요."}), status=404, mimetype="application/json")
+        tab.update_cell(row_num, ad_idx + 1, "Y" if adopted else "")
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps({"ok": True}), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
