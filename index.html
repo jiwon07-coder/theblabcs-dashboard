@@ -302,7 +302,8 @@
       </button>
     </div>
     <div class="sb-foot">
-      데이터 로드<br><strong id="lastUpdated">-</strong><br>
+      채널에서 데이터 불러온 시각<br><strong id="lastDataLoad">-</strong><br>
+      대시보드 갱신 시각<br><strong id="lastUpdated">-</strong><br>
       총 <strong id="totalCount">0</strong>건
     </div>
   </nav>
@@ -570,6 +571,7 @@ async function loadData(pw) {
     PRODUCT_SUMMARIES = payload.summaries || {};
     TEMPLATES = payload.templates || [];
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
+    document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
     renderToday();
     renderChat();

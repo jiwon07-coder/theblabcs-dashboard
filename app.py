@@ -196,6 +196,22 @@ def fetch_summaries():
     return result
 
 
+def fetch_last_data_load():
+    """"설정" 탭에 run_all.ps1이 카페24/네이버 동기화 직후 기록해두는 시각(KST 문자열).
+    "데이터를 불러온 시각"(채널에서 실제로 새 데이터를 가져온 시각) - 이 API 응답
+    자체가 반환되는 시각("대시보드 갱신 시각")과는 다른 개념이라 구분해서 내려준다."""
+    gc = get_gspread_client()
+    spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+    try:
+        tab = spreadsheet.worksheet("설정")
+    except gspread.exceptions.WorksheetNotFound:
+        return None
+    for row in tab.get_all_values():
+        if row and row[0] == "last_data_load":
+            return row[1] if len(row) > 1 else None
+    return None
+
+
 def fetch_templates():
     """"CS 템플릿" 구글시트(별도 시트, 읽기 전용 공유)에서 소분류별 답변 템플릿을 가져온다.
     TEMPLATE_SHEET_ID가 설정 안 돼있으면(아직 공유 전이면) 빈 리스트."""
@@ -221,10 +237,14 @@ def api_data():
         records = fetch_records()
         summaries = fetch_summaries()
         templates = fetch_templates()
+        last_data_load = fetch_last_data_load()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
-    resp = Response(json.dumps({"records": records, "summaries": summaries, "templates": templates}, ensure_ascii=False), mimetype="application/json")
+    resp = Response(json.dumps({
+        "records": records, "summaries": summaries, "templates": templates,
+        "lastDataLoad": last_data_load,
+    }, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
