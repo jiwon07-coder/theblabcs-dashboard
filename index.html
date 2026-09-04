@@ -201,6 +201,20 @@
   .channel-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;flex:none;}
   .channel-badge[data-channel="카카오톡"]{background:rgba(232,163,61,0.18);color:#9A6A1E;}
   .channel-badge[data-channel="네이버 톡톡"]{background:rgba(47,143,130,0.16);color:var(--good);}
+  .channel-badge[data-channel="카페24"]{background:rgba(91,98,116,0.14);color:var(--slate);}
+
+  /* ===== 리뷰 탭 ===== */
+  .review-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
+    padding:16px 18px;margin-bottom:12px;}
+  .review-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .review-stars{color:var(--amber);font-size:14px;letter-spacing:1px;flex:none;}
+  .review-content{font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;}
+  .review-photos{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap;}
+  .review-photos img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
+  .ad-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--slate);
+    cursor:pointer;font-weight:500;}
+  .ad-toggle input{width:15px;height:15px;accent-color:var(--good);cursor:pointer;}
+  .ad-toggle.adopted{color:var(--good);font-weight:600;}
   .chat-preview{font-size:12.5px;color:var(--slate);margin:0 0 10px;}
   .chat-card-foot{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap;}
   .chat-thread{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
@@ -299,6 +313,10 @@
       </button>
       <button class="sb-item" data-tab="products">
         <span class="sb-label"><span class="sb-dot"></span>제품별 분석</span>
+      </button>
+      <button class="sb-item" data-tab="review">
+        <span class="sb-label"><span class="sb-dot"></span>리뷰</span>
+        <span class="sb-count" id="sbReviewCount">0</span>
       </button>
     </div>
     <div class="sb-foot">
@@ -465,6 +483,38 @@
       </div>
     </div>
 
+    <!-- ===== 탭: 리뷰 ===== -->
+    <div class="tab-panel" id="tab-review">
+      <div class="panel section" id="reviewPanel">
+        <div class="todayHeadRow">
+          <p class="sub"><span id="reviewCount">0</span>건</p>
+        </div>
+        <div class="filters">
+          <select id="fReviewProduct"><option value="all">전체 제품</option></select>
+          <select id="fReviewRating">
+            <option value="all">전체 별점</option>
+            <option value="5">5점</option>
+            <option value="4">4점 이상</option>
+            <option value="3">3점 이상</option>
+            <option value="2">2점 이상</option>
+            <option value="1">1점 이상</option>
+          </select>
+          <select id="fReviewPeriod">
+            <option value="all">전체 기간</option>
+            <option value="30">최근 30일</option>
+            <option value="90">최근 90일</option>
+            <option value="365">최근 1년</option>
+          </select>
+          <select id="fReviewAd">
+            <option value="all">전체</option>
+            <option value="adopted">광고소재 채택만</option>
+          </select>
+        </div>
+        <div id="reviewList"></div>
+        <p id="reviewEmpty" class="empty-state" style="display:none;">조건에 맞는 리뷰가 없어요.</p>
+      </div>
+    </div>
+
     <p class="foot-note">※ 이 데이터는 서버에서 그때그때 구글시트를 직접 조회해 가져오며, 별도로 저장되지 않습니다. 최근 3개월치만 표시되며, 이전 데이터는 구글시트에 그대로 남아있습니다.</p>
   </main>
 </div>
@@ -513,6 +563,7 @@
 let allData = [];
 let PRODUCT_SUMMARIES = {};
 let TEMPLATES = [];
+let REVIEWS = [];
 let chatChannelFilter = 'all';
 
 function collapsibleCell(text) {
@@ -570,6 +621,7 @@ async function loadData(pw) {
     allData = payload.records;
     PRODUCT_SUMMARIES = payload.summaries || {};
     TEMPLATES = payload.templates || [];
+    REVIEWS = payload.reviews || [];
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
@@ -579,6 +631,7 @@ async function loadData(pw) {
     renderHome();
     initFilters();
     render();
+    renderReviews();
     return 'ok';
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
@@ -626,6 +679,7 @@ const TAB_META = {
   templates: { eyebrow: 'Templates', title: '답변 템플릿' },
   weekly: { eyebrow: 'Weekly', title: '주간 문의 분석' },
   products: { eyebrow: 'Products', title: '제품별 분석' },
+  review: { eyebrow: 'Reviews', title: '리뷰' },
 };
 function switchTab(tab) {
   document.querySelectorAll('.sb-item').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
@@ -863,6 +917,9 @@ function initFilters() {
   fill('fType', unique(nonChat, '문제유형'));
   fill('fStatus', unique(nonChat, '처리상태'));
   ['fWeek','fChannel','fProduct','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
+
+  fill('fReviewProduct', unique(REVIEWS, '제품'));
+  ['fReviewProduct','fReviewRating','fReviewPeriod','fReviewAd'].forEach(id => document.getElementById(id).addEventListener('change', renderReviews));
 
   const analysisSel = document.getElementById('fAnalysisWeek');
   analysisSel.innerHTML = '';
@@ -1108,6 +1165,80 @@ document.getElementById('submitChatLogBtn').addEventListener('click', async () =
     chatLogError.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = '저장';
+  }
+});
+
+function starString(rating) {
+  const n = Math.round(Number(rating) || 0);
+  return '★★★★★☆☆☆☆☆'.slice(5 - n, 10 - n);
+}
+
+function renderReviews() {
+  document.getElementById('sbReviewCount').textContent = REVIEWS.length;
+
+  const fProduct = document.getElementById('fReviewProduct').value;
+  const fRating = document.getElementById('fReviewRating').value;
+  const fPeriod = document.getElementById('fReviewPeriod').value;
+  const fAd = document.getElementById('fReviewAd').value;
+  const cutoff = fPeriod === 'all' ? null : new Date(Date.now() - Number(fPeriod) * 86400000);
+
+  const rows = REVIEWS.filter(r => {
+    if (fProduct !== 'all' && r['제품'] !== fProduct) return false;
+    if (fRating !== 'all' && Number(r['별점'] || 0) < Number(fRating)) return false;
+    if (cutoff && new Date(r['날짜']) < cutoff) return false;
+    if (fAd === 'adopted' && r['광고소재채택'] !== 'Y') return false;
+    return true;
+  }).sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
+
+  document.getElementById('reviewCount').textContent = rows.length;
+  const list = document.getElementById('reviewList');
+  const emptyEl = document.getElementById('reviewEmpty');
+  if (!rows.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+
+  list.innerHTML = rows.map(r => {
+    const adopted = r['광고소재채택'] === 'Y';
+    const photos = (r['사진URL'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    return `
+    <div class="review-card">
+      <div class="review-card-head">
+        <span class="review-stars">${starString(r['별점'])}</span>
+        <span class="chip">${r['날짜']||''}</span>
+        <span class="channel-badge" data-channel="${r['채널']||''}">${r['채널']||''}</span>
+        <span class="chip">${r['제품']||'-'}</span>
+        <span class="chip">${r['작성자']||''}</span>
+      </div>
+      <p class="review-content">${r['리뷰내용']||''}</p>
+      ${photos.length ? `<div class="review-photos">${photos.map(u => `<img src="${escapeAttr(u)}" loading="lazy">`).join('')}</div>` : ''}
+      <label class="ad-toggle ${adopted ? 'adopted' : ''}">
+        <input type="checkbox" data-review-id="${r['리뷰ID']}" ${adopted ? 'checked' : ''}> 광고소재로 채택
+      </label>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('change', async (e) => {
+  const box = e.target.closest('.ad-toggle input[type="checkbox"]');
+  if (!box) return;
+  const reviewId = box.dataset.reviewId;
+  const adopted = box.checked;
+  const label = box.closest('.ad-toggle');
+  box.disabled = true;
+  try {
+    const res = await fetch('/api/toggle-review-ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: JSON.stringify({ reviewId, adopted }),
+    });
+    if (!res.ok) throw new Error('저장 실패');
+    const r = REVIEWS.find(x => x['리뷰ID'] === reviewId);
+    if (r) r['광고소재채택'] = adopted ? 'Y' : '';
+    label.classList.toggle('adopted', adopted);
+  } catch (err) {
+    box.checked = !adopted;
+    alert('체크 저장에 실패했어요. 다시 시도해주세요.');
+  } finally {
+    box.disabled = false;
   }
 });
 
