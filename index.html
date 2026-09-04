@@ -1024,6 +1024,8 @@ document.getElementById('tableShowMoreBtn').addEventListener('click', () => {
 
 async function tryUnlock(pw) {
   document.getElementById('pwError').style.display = 'none';
+  document.getElementById('pwGate').style.display = 'none';
+  document.getElementById('loadingGate').style.display = 'flex';
   const result = await loadData(pw);
   document.getElementById('loadingGate').style.display = 'none';
   if (result === 'ok') {
