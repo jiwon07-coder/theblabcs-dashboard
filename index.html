@@ -131,7 +131,7 @@
     width:100%;font-family:'Inter','Pretendard',sans-serif;font-size:13px;padding:9px 12px;
     border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
   .modal-body textarea{resize:vertical;font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;}
-  .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;}
+  .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;white-space:pre-wrap;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .cc-wrap{display:flex;align-items:flex-start;gap:4px;}
@@ -202,6 +202,12 @@
   .channel-badge[data-channel="카카오톡"]{background:rgba(232,163,61,0.18);color:#9A6A1E;}
   .channel-badge[data-channel="네이버 톡톡"]{background:rgba(47,143,130,0.16);color:var(--good);}
   .channel-badge[data-channel="카페24"]{background:rgba(91,98,116,0.14);color:var(--slate);}
+  .chat-edit-form{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin-top:2px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;}
+  .chat-edit-form label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--slate);}
+  .chat-edit-form select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:7px 10px;
+    border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
+  .chat-edit-actions{display:flex;gap:8px;}
 
   /* ===== 리뷰 탭 ===== */
   .review-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
@@ -587,8 +593,8 @@
       <select id="chatStatus"><option value="완료">완료</option><option value="대기">대기</option></select>
 
       <div id="chatKakaoFields">
-        <label>카카오 비즈니스 대화창에서 "엑셀로 내보내기" 한 파일</label>
-        <input type="file" id="chatKakaoFile" accept=".xlsx">
+        <label>카카오 비즈니스 대화창에서 "엑셀로 내보내기" 한 파일 <span class="chip">여러 개 한꺼번에 선택 가능</span></label>
+        <input type="file" id="chatKakaoFile" accept=".xlsx" multiple>
       </div>
       <div id="chatNaverFields" style="display:none;">
         <label>고객 닉네임 <span class="chip">대화창에 뜨는 이름 그대로 — 정확도를 위해 입력 권장</span></label>
@@ -644,6 +650,11 @@ document.addEventListener('click', (e) => {
     if (target) target.style.display = target.style.display === 'none' ? '' : 'none';
     return;
   }
+  const editSaveBtn = e.target.closest('.chat-edit-save');
+  if (editSaveBtn) {
+    saveChatEdit(editSaveBtn);
+    return;
+  }
   const copyBtn = e.target.closest('.tpl-copy');
   if (copyBtn) {
     navigator.clipboard.writeText(copyBtn.dataset.answer || '').then(() => {
@@ -655,6 +666,27 @@ document.addEventListener('click', (e) => {
 });
 
 const CHAT_CHANNELS = ['카카오톡', '네이버 톡톡'];
+
+// app.py의 CLASSIFY_RULES/ai_classify.py의 MINOR_TO_MAJOR와 같은 분류 체계 - 정보 수정
+// 드롭다운용. 체계를 바꾸면 이 셋(app.py CLASSIFY_RULES, ai_classify.py, 여기) 다 맞출 것.
+const TAXONOMY = [
+  ['배송문의', '배송문의'],
+  ['제품 불량', '제품 파손/마감 문제'], ['제품 불량', '잘 열림'], ['제품 불량', '잠금 안 됨'],
+  ['제품 불량', '안열림'], ['제품 불량', '충전 안 됨'], ['제품 불량', '버튼 인식 문제'],
+  ['제품 불량', 'LED창 불량'], ['제품 불량', '회로 문제'],
+  ['사용 방법', '비상 해제 가능 여부'], ['사용 방법', '무음 모드'], ['사용 방법', '충전 방법'],
+  ['사용 방법', '제품 사이즈, 기종 문의'], ['사용 방법', '오픈 방법'], ['사용 방법', '케이블 사용법'],
+  ['기타 문의', '비상 해제 요청'], ['기타 문의', 'AS 여부'], ['기타 문의', '케이블 구매안내'], ['기타 문의', '기타'],
+];
+const PRODUCT_OPTIONS = ['미분류', '오리지널', '오리지널 V2', '프로', '미니', '오리지널 케이블'];
+
+function minorOptionsHtml(selected) {
+  const groups = {};
+  TAXONOMY.forEach(([major, minor]) => { (groups[major] = groups[major] || []).push(minor); });
+  return Object.entries(groups).map(([major, minors]) => `<optgroup label="${major}">${
+    minors.map(m => `<option value="${m}" ${m === selected ? 'selected' : ''}>${m}</option>`).join('')
+  }</optgroup>`).join('');
+}
 const isChat = (r) => CHAT_CHANNELS.includes(r['채널']);
 const TYPE_ORDER = ['사용 방법', '제품 불량', '배송문의', '기타 문의'];
 const TYPE_COLOR = {'사용 방법':'#E8A33D', '제품 불량':'#D9614F', '배송문의':'#2F8F82', '기타 문의':'#5B6274'};
@@ -917,8 +949,9 @@ function renderChat() {
   emptyEl.style.display = 'none';
   list.innerHTML = rows.map((r, i) => {
     const threadId = 'chat-thread-' + i;
+    const editId = 'chat-edit-' + i;
     return `
-    <div class="chat-card">
+    <div class="chat-card" data-chat-id="${escapeAttr(r['문의ID'])}">
       <div class="chat-card-head">
         <span class="chip">${r['날짜']||''}</span>
         <span class="channel-badge" data-channel="${r['채널']||''}">${r['채널']||''}</span>
@@ -928,11 +961,65 @@ function renderChat() {
       </div>
       <p class="chat-preview">${r['AI요약'] || chatPreview(r['고객문의'])}</p>
       <div class="chat-thread" id="${threadId}" style="display:none;">${renderChatBubbles(r['고객문의'])}</div>
+      <div class="chat-edit-form" id="${editId}" style="display:none;">
+        <label>제품
+          <select class="chat-edit-product">${PRODUCT_OPTIONS.map(p => `<option value="${p}" ${p===r['제품']?'selected':''}>${p}</option>`).join('')}</select>
+        </label>
+        <label>소분류
+          <select class="chat-edit-minor">${minorOptionsHtml(r['소분류'])}</select>
+        </label>
+        <label>처리상태
+          <select class="chat-edit-status">
+            <option value="완료" ${r['처리상태']==='완료'?'selected':''}>완료</option>
+            <option value="대기" ${r['처리상태']==='대기'?'selected':''}>대기</option>
+          </select>
+        </label>
+        <div class="chat-edit-actions">
+          <button class="mark-seen-btn chat-edit-save">저장</button>
+          <button class="link-btn tpl-toggle-btn" data-target="${editId}">취소</button>
+        </div>
+        <p class="modal-error chat-edit-error" style="display:none;width:100%;"></p>
+      </div>
       <div class="chat-card-foot">
         <button class="link-btn tpl-toggle-btn" data-target="${threadId}">대화 전체 보기 ▾</button>
+        <button class="link-btn tpl-toggle-btn" data-target="${editId}">정보 수정 ▾</button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function saveChatEdit(btn) {
+  const form = btn.closest('.chat-edit-form');
+  const card = btn.closest('.chat-card');
+  const chatId = card.dataset.chatId;
+  const errorEl = form.querySelector('.chat-edit-error');
+  errorEl.style.display = 'none';
+
+  const body = {
+    '문의ID': chatId,
+    '제품': form.querySelector('.chat-edit-product').value,
+    '소분류': form.querySelector('.chat-edit-minor').value,
+    '처리상태': form.querySelector('.chat-edit-status').value,
+  };
+
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    const res = await fetch('/api/update-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
+    const major = TAXONOMY.find(([, minor]) => minor === body['소분류'])?.[0] || '';
+    const r = allData.find(x => x['문의ID'] === chatId);
+    if (r) { r['제품'] = body['제품']; r['소분류'] = body['소분류']; r['문제유형'] = major; r['처리상태'] = body['처리상태']; }
+    renderChat();
+  } catch (e) {
+    errorEl.textContent = e.message;
+    errorEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = '저장';
+  }
 }
 
 function renderWeekKpi() {
@@ -1179,36 +1266,75 @@ chatLogOverlay.addEventListener('click', (e) => { if (e.target === chatLogOverla
 chatChannelSel.addEventListener('change', toggleChatFields);
 toggleChatFields();
 
+async function submitOneChatLog(fd) {
+  const res = await fetch('/api/log-chat', {
+    method: 'POST',
+    headers: { 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+    body: fd,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
+}
+
 document.getElementById('submitChatLogBtn').addEventListener('click', async () => {
   chatLogError.style.display = 'none';
   const channel = chatChannelSel.value;
   const isKakao = channel === '카카오톡';
-  const fd = new FormData();
-  fd.append('channel', channel);
-  fd.append('product', document.getElementById('chatProduct').value);
-  fd.append('status', document.getElementById('chatStatus').value);
-  if (isKakao) {
-    const file = document.getElementById('chatKakaoFile').files[0];
-    if (!file) { chatLogError.textContent = '엑셀 파일을 선택해주세요.'; chatLogError.style.display = 'block'; return; }
-    fd.append('kakao_file', file);
-  } else {
-    const rawText = document.getElementById('chatRawText').value.trim();
-    if (!rawText) { chatLogError.textContent = '대화 내용을 붙여넣어주세요.'; chatLogError.style.display = 'block'; return; }
-    fd.append('raw_text', rawText);
-    fd.append('customer_name', document.getElementById('chatCustomerName').value.trim());
-    fd.append('date', document.getElementById('chatDate').value);
-  }
+  const product = document.getElementById('chatProduct').value;
+  const status = document.getElementById('chatStatus').value;
 
   const btn = document.getElementById('submitChatLogBtn');
+
+  if (isKakao) {
+    // 카카오는 파일당 대화 하나라, 여러 개 선택했으면 한 파일씩 순서대로 저장함
+    // (한 요청에 다 넣으면 하나 실패했을 때 나머지까지 통째로 실패해버리므로).
+    const files = [...document.getElementById('chatKakaoFile').files];
+    if (!files.length) { chatLogError.textContent = '엑셀 파일을 선택해주세요.'; chatLogError.style.display = 'block'; return; }
+
+    btn.disabled = true;
+    const failed = [];
+    for (let i = 0; i < files.length; i++) {
+      btn.textContent = files.length > 1 ? `저장 중... (${i + 1}/${files.length})` : '저장 중...';
+      const fd = new FormData();
+      fd.append('channel', channel);
+      fd.append('product', product);
+      fd.append('status', status);
+      fd.append('kakao_file', files[i]);
+      try {
+        await submitOneChatLog(fd);
+      } catch (e) {
+        failed.push(`${files[i].name}: ${e.message}`);
+      }
+    }
+    btn.disabled = false; btn.textContent = '저장';
+
+    if (failed.length === files.length) {
+      chatLogError.textContent = failed.join('\n');
+      chatLogError.style.display = 'block';
+      return;
+    }
+    if (failed.length) {
+      chatLogError.textContent = `${files.length - failed.length}개 저장 완료, ${failed.length}개 실패:\n${failed.join('\n')}`;
+      chatLogError.style.display = 'block';
+    }
+    await loadData(sessionStorage.getItem('cs_dashboard_pw'));
+    if (!failed.length) closeChatLog();
+    return;
+  }
+
+  const rawText = document.getElementById('chatRawText').value.trim();
+  if (!rawText) { chatLogError.textContent = '대화 내용을 붙여넣어주세요.'; chatLogError.style.display = 'block'; return; }
+  const fd = new FormData();
+  fd.append('channel', channel);
+  fd.append('product', product);
+  fd.append('status', status);
+  fd.append('raw_text', rawText);
+  fd.append('customer_name', document.getElementById('chatCustomerName').value.trim());
+  fd.append('date', document.getElementById('chatDate').value);
+
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
-    const res = await fetch('/api/log-chat', {
-      method: 'POST',
-      headers: { 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
-      body: fd,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
+    await submitOneChatLog(fd);
     closeChatLog();
     await loadData(sessionStorage.getItem('cs_dashboard_pw'));
   } catch (e) {

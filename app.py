@@ -424,3 +424,48 @@ def api_log_chat():
     resp = Response(json.dumps({"ok": True, "id": chat_id}, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+# CLASSIFY_RULES의 (대분류, 소분류, ...) 쌍에서 소분류→대분류 역매핑을 만듦(ai_classify.py의
+# MINOR_TO_MAJOR와 같은 taxonomy - "기타"는 규칙표에 없는 catch-all이라 따로 추가).
+MINOR_TO_MAJOR = {minor: major for major, minor, _ in CLASSIFY_RULES}
+MINOR_TO_MAJOR["기타"] = "기타 문의"
+
+EDITABLE_CHAT_FIELDS = {"제품", "소분류", "처리상태"}
+
+
+@app.route("/api/update-chat", methods=["POST"])
+def api_update_chat():
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
+
+    body = request.get_json(silent=True) or {}
+    chat_id = body.get("문의ID", "")
+    if not chat_id:
+        return Response(json.dumps({"error": "문의ID가 필요해요."}), status=400, mimetype="application/json")
+
+    updates = {k: v for k, v in body.items() if k in EDITABLE_CHAT_FIELDS}
+    if "소분류" in updates:
+        if updates["소분류"] not in MINOR_TO_MAJOR:
+            return Response(json.dumps({"error": "알 수 없는 소분류예요."}), status=400, mimetype="application/json")
+        updates["문제유형"] = MINOR_TO_MAJOR[updates["소분류"]]
+
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+        tab = spreadsheet.worksheet("채팅상담_CS")
+        values = tab.get_all_values()
+        headers = values[0]
+        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[0] == chat_id), None)
+        if row_num is None:
+            return Response(json.dumps({"error": "해당 문의를 찾을 수 없어요."}), status=404, mimetype="application/json")
+        for field, value in updates.items():
+            if field in headers:
+                tab.update_cell(row_num, headers.index(field) + 1, value)
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps({"ok": True}), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
