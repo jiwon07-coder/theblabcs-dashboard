@@ -636,7 +636,7 @@ function renderTemplateList(list, emptyMsg) {
   return list.map(t => `
     <div class="tpl-item">
       <div class="tpl-item-head">
-        <span class="chip">${t['제품'] || '공통'}</span>
+        <span class="chip">${t['제품'] || '전체 제품'}</span>
         <span class="tpl-q">${t['질문'] || ''}</span>
         <button class="link-btn tpl-copy" data-answer="${escapeAttr(t['답변'])}">복사</button>
       </div>

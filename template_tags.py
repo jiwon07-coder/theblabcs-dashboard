@@ -62,15 +62,24 @@ def load_templates(gc, sheet_id):
     idx_a = headers.index("답변") if "답변" in headers else None
 
     templates = []
+    last_product = ""  # "대분류"(제품명) 컬럼이 셀 병합이라 병합 시작 행에만 값이 있고
+    # 나머지 행은 빈 문자열로 읽힘(gspread는 병합 셀의 비-앵커 셀을 빈 값으로 반환) - 그대로
+    # 두면 "제품" 없는 행이 UI에서 전부 "공통"으로 표시돼버림. 병합 범위 전체에 값이
+    # 적용된다는 뜻이므로, 값이 있는 행에서 갱신해서 빈 행엔 이어서 채워준다.
     for row_num, row in enumerate(values[1:], start=2):
         if not any(row):
             continue
         minor = ROW_TO_MINOR.get(row_num)
         if not minor:
             continue
+        product = row[idx_major] if idx_major is not None and len(row) > idx_major else ""
+        if product:
+            last_product = product
+        else:
+            product = last_product
         templates.append({
             "소분류": minor,
-            "제품": row[idx_major] if idx_major is not None and len(row) > idx_major else "",
+            "제품": product,
             "질문": row[idx_q] if idx_q is not None and len(row) > idx_q else "",
             "답변": row[idx_a] if idx_a is not None and len(row) > idx_a else "",
         })
