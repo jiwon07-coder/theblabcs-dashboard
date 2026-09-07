@@ -208,6 +208,8 @@
     padding:16px 18px;margin-bottom:12px;}
   .review-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
   .review-stars{color:var(--amber);font-size:14px;letter-spacing:1px;flex:none;}
+  .narrative-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;
+    background:rgba(47,143,130,0.14);color:var(--good);}
   .review-content{font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;}
   .review-photos{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap;}
   .review-photos img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
@@ -508,6 +510,11 @@
           <select id="fReviewAd">
             <option value="all">전체</option>
             <option value="adopted">광고소재 채택만</option>
+          </select>
+          <select id="fReviewNarrative">
+            <option value="all">전체 서사유형</option>
+            <option value="망설임형">망설임형</option>
+            <option value="비교구매형">비교구매형</option>
           </select>
         </div>
         <div id="reviewList"></div>
@@ -919,7 +926,7 @@ function initFilters() {
   ['fWeek','fChannel','fProduct','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', render));
 
   fill('fReviewProduct', unique(REVIEWS, '제품'));
-  ['fReviewProduct','fReviewRating','fReviewPeriod','fReviewAd'].forEach(id => document.getElementById(id).addEventListener('change', renderReviews));
+  ['fReviewProduct','fReviewRating','fReviewPeriod','fReviewAd','fReviewNarrative'].forEach(id => document.getElementById(id).addEventListener('change', renderReviews));
 
   const analysisSel = document.getElementById('fAnalysisWeek');
   analysisSel.innerHTML = '';
@@ -1178,6 +1185,7 @@ function renderReviews() {
   const fRating = document.getElementById('fReviewRating').value;
   const fPeriod = document.getElementById('fReviewPeriod').value;
   const fAd = document.getElementById('fReviewAd').value;
+  const fNarrative = document.getElementById('fReviewNarrative').value;
   const cutoff = fPeriod === 'all' ? null : new Date(Date.now() - Number(fPeriod) * 86400000);
 
   const rows = REVIEWS.filter(r => {
@@ -1185,6 +1193,7 @@ function renderReviews() {
     if (fRating !== 'all' && Number(r['별점'] || 0) < Number(fRating)) return false;
     if (cutoff && new Date(r['날짜']) < cutoff) return false;
     if (fAd === 'adopted' && r['광고소재채택'] !== 'Y') return false;
+    if (fNarrative !== 'all' && !(r['서사유형'] || []).includes(fNarrative)) return false;
     return true;
   }).sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
 
@@ -1205,6 +1214,7 @@ function renderReviews() {
         <span class="channel-badge" data-channel="${r['채널']||''}">${r['채널']||''}</span>
         <span class="chip">${r['제품']||'-'}</span>
         <span class="chip">${r['작성자']||''}</span>
+        ${(r['서사유형']||[]).map(n => `<span class="narrative-badge">${n}</span>`).join('')}
       </div>
       <p class="review-content">${r['리뷰내용']||''}</p>
       ${photos.length ? `<div class="review-photos">${photos.map(u => `<img src="${escapeAttr(u)}" loading="lazy">`).join('')}</div>` : ''}

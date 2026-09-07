@@ -24,6 +24,7 @@ from google.oauth2.service_account import Credentials
 import template_tags
 import kakao_export
 import naver_export
+import review_keywords
 
 app = Flask(__name__)
 
@@ -226,7 +227,20 @@ def fetch_reviews():
     if not values:
         return []
     headers = values[0]
-    return [dict(zip(headers, row)) for row in values[1:] if row]
+    records = [dict(zip(headers, row)) for row in values[1:] if row]
+    for r in records:
+        try:
+            rating = float(r.get("별점") or 0)
+        except ValueError:
+            rating = 0
+        content = r.get("리뷰내용", "")
+        narratives = []
+        if rating >= 4 and review_keywords.has_hesitation(content):
+            narratives.append("망설임형")
+        if rating >= 4 and review_keywords.has_comparison(content):
+            narratives.append("비교구매형")
+        r["서사유형"] = narratives
+    return records
 
 
 def fetch_templates():
