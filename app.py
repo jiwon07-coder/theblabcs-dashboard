@@ -235,12 +235,39 @@ def fetch_reviews():
             rating = 0
         content = r.get("리뷰내용", "")
         narratives = []
+        snippet = ""
         if rating >= 4 and review_keywords.has_hesitation(content):
             narratives.append("망설임형")
+            snippet = review_keywords.extract_hesitation_snippet(content)
         if rating >= 4 and review_keywords.has_comparison(content):
             narratives.append("비교구매형")
         r["서사유형"] = narratives
+        r["의심포인트"] = snippet
     return records
+
+
+def fetch_word_frequency():
+    """"리뷰단어빈도" 탭(review_noun_frequency.py가 로컬 konlpy로 미리 계산해서 채워둠)을
+    읽어서 반환. Vercel엔 JVM이 없어서 konlpy를 여기서 직접 못 돌림 - AI 요약과 같은
+    "로컬에서 미리 계산, 여기선 읽기만" 패턴."""
+    gc = get_gspread_client()
+    spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+    try:
+        tab = spreadsheet.worksheet("리뷰단어빈도")
+    except gspread.exceptions.WorksheetNotFound:
+        return []
+    values = tab.get_all_values()
+    if len(values) < 2:
+        return []
+    result = []
+    for row in values[1:]:
+        if len(row) < 2 or not row[0]:
+            continue
+        try:
+            result.append([row[0], int(row[1])])
+        except ValueError:
+            continue
+    return result
 
 
 def fetch_templates():
@@ -270,12 +297,13 @@ def api_data():
         templates = fetch_templates()
         last_data_load = fetch_last_data_load()
         reviews = fetch_reviews()
+        word_frequency = fetch_word_frequency()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
     resp = Response(json.dumps({
         "records": records, "summaries": summaries, "templates": templates,
-        "lastDataLoad": last_data_load, "reviews": reviews,
+        "lastDataLoad": last_data_load, "reviews": reviews, "wordFrequency": word_frequency,
     }, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp

@@ -9,6 +9,17 @@ export_dashboard.py의 classify_inquiry와 같은 방식 - 새 표현을 발견�
 """
 import re
 
+# 카페24가 리뷰 끝에 자동으로 붙이는 "YYYY-MM-DD ... 에(서) 등록된/작성된 {채널} 구매평" 꼬리.
+# 괄호 유무/"등록된"·"작성된"/"에"·"에서" 조합으로 실제 4가지 변형이 확인됨(2026-09-07,
+# review_noun_frequency.py 작업 중 발견) - 안 지우면 "스마트스토어"가 "스마트"/"스토어"로
+# 쪼개지거나, 의심 포인트 인용구 끝에 이 날짜/채널 텍스트가 지저분하게 붙어버림.
+_PLATFORM_TAIL_RE = re.compile(r"\(?\d{4}-\d{2}-\d{2}[^\n]{0,30}?에서?\s?(등록|작성)된[^\n]*")
+
+
+def strip_platform_tail(text):
+    return _PLATFORM_TAIL_RE.sub("", text or "")
+
+
 HESITATION_PATTERNS = [
     r"반신반의",
     r"걱정.{0,12}(했는데|했지만|했던|되서|됐는데|많았)",
@@ -72,3 +83,19 @@ def find_hesitation_reviews(reviews, min_rating=4):
 
 def find_comparison_reviews(reviews, min_rating=4):
     return _filter_by_rating(reviews, min_rating, has_comparison)
+
+
+def extract_hesitation_snippet(text, context=40):
+    """망설임 표현이 매칭된 부분 앞뒤로 짧게 잘라서 반환 - "구매 전 의심 포인트" 목록처럼
+    리뷰 전문이 아니라 한눈에 훑어볼 짧은 인용구가 필요할 때 씀. 매칭 없으면 빈 문자열."""
+    text = strip_platform_tail(text)
+    if not text:
+        return ""
+    for p in HESITATION_PATTERNS:
+        m = re.search(p, text)
+        if m:
+            start = max(0, m.start() - context)
+            end = min(len(text), m.end() + context)
+            snippet = re.sub(r"\s+", " ", text[start:end]).strip()
+            return ("…" if start > 0 else "") + snippet + ("…" if end < len(text) else "")
+    return ""

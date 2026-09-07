@@ -210,6 +210,25 @@
   .review-stars{color:var(--amber);font-size:14px;letter-spacing:1px;flex:none;}
   .narrative-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;
     background:rgba(47,143,130,0.14);color:var(--good);}
+
+  .copy-candidate-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(260px,1fr));gap:12px;}
+  .copy-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
+    padding:14px 16px;display:flex;flex-direction:column;gap:8px;}
+  .copy-card-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .copy-card p{font-size:12.5px;color:var(--ink);line-height:1.6;margin:0;white-space:pre-wrap;
+    max-height:120px;overflow-y:auto;}
+  .copy-card .tpl-copy{align-self:flex-start;margin-left:0;}
+
+  .doubt-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .doubt-item:last-child{border-bottom:none;}
+  .doubt-item p{margin:0;font-size:12.5px;color:var(--ink);line-height:1.6;flex:1;}
+
+  .word-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px;}
+  .word-bar-label{width:64px;flex:none;color:var(--ink);font-weight:500;}
+  .word-bar-track{flex:1;background:var(--paper);border-radius:6px;height:16px;overflow:hidden;}
+  .word-bar-fill{height:100%;background:var(--teal);border-radius:6px;}
+  .word-bar-count{width:36px;flex:none;text-align:right;color:var(--slate);
+    font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;}
   .review-content{font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;}
   .review-photos{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap;}
   .review-photos img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
@@ -487,6 +506,26 @@
 
     <!-- ===== 탭: 리뷰 ===== -->
     <div class="tab-panel" id="tab-review">
+      <div class="panel section">
+        <h3>카피 후보</h3>
+        <p class="sub">망설임형·비교구매형으로 분류된 리뷰 - 광고 카피에 바로 참고할 수 있어요</p>
+        <div id="copyCandidateList" class="copy-candidate-grid"></div>
+        <p id="copyCandidateEmpty" class="empty-state" style="display:none;">아직 분류된 카피 후보가 없어요.</p>
+      </div>
+
+      <div class="panel section">
+        <h3>구매 전 의심 포인트</h3>
+        <p class="sub">고객이 사기 전에 망설였던 부분 - 자주 나오면 상세페이지·광고에서 먼저 짚어주면 좋아요</p>
+        <div id="doubtPointList"></div>
+        <p id="doubtPointEmpty" class="empty-state" style="display:none;">아직 의심 포인트가 없어요.</p>
+      </div>
+
+      <div class="panel section">
+        <h3>자주 나오는 단어</h3>
+        <p class="sub">리뷰 전체에서 명사만 추출(konlpy) - 매일 자동 갱신</p>
+        <div id="wordFreqList"></div>
+      </div>
+
       <div class="panel section" id="reviewPanel">
         <div class="todayHeadRow">
           <p class="sub"><span id="reviewCount">0</span>건</p>
@@ -571,6 +610,7 @@ let allData = [];
 let PRODUCT_SUMMARIES = {};
 let TEMPLATES = [];
 let REVIEWS = [];
+let WORD_FREQUENCY = [];
 let chatChannelFilter = 'all';
 
 function collapsibleCell(text) {
@@ -629,6 +669,7 @@ async function loadData(pw) {
     PRODUCT_SUMMARIES = payload.summaries || {};
     TEMPLATES = payload.templates || [];
     REVIEWS = payload.reviews || [];
+    WORD_FREQUENCY = payload.wordFrequency || [];
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
@@ -639,6 +680,9 @@ async function loadData(pw) {
     initFilters();
     render();
     renderReviews();
+    renderCopyCandidates();
+    renderDoubtPoints();
+    renderWordFrequency();
     return 'ok';
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
@@ -1225,6 +1269,51 @@ function renderReviews() {
       </label>
     </div>`;
   }).join('');
+}
+
+function renderCopyCandidates() {
+  const rows = REVIEWS.filter(r => (r['서사유형']||[]).length > 0)
+    .sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
+  const list = document.getElementById('copyCandidateList');
+  const emptyEl = document.getElementById('copyCandidateEmpty');
+  if (!rows.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  list.innerHTML = rows.map(r => `
+    <div class="copy-card">
+      <div class="copy-card-head">
+        <span class="review-stars">${starString(r['별점'])}</span>
+        <span class="chip">${r['제품']||'-'}</span>
+        ${(r['서사유형']||[]).map(n => `<span class="narrative-badge">${n}</span>`).join('')}
+      </div>
+      <p>${r['리뷰내용']||''}</p>
+      <button class="link-btn tpl-copy" data-answer="${escapeAttr(r['리뷰내용'])}">복사</button>
+    </div>`).join('');
+}
+
+function renderDoubtPoints() {
+  const rows = REVIEWS.filter(r => r['의심포인트'])
+    .sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
+  const list = document.getElementById('doubtPointList');
+  const emptyEl = document.getElementById('doubtPointEmpty');
+  if (!rows.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  list.innerHTML = rows.map(r => `
+    <div class="doubt-item">
+      <span class="chip">${r['제품']||'-'}</span>
+      <p>"${r['의심포인트']}"</p>
+    </div>`).join('');
+}
+
+function renderWordFrequency() {
+  const list = document.getElementById('wordFreqList');
+  if (!WORD_FREQUENCY.length) { list.innerHTML = '<p class="empty-state">아직 계산된 단어 빈도가 없어요.</p>'; return; }
+  const max = Math.max(...WORD_FREQUENCY.map(([, count]) => count));
+  list.innerHTML = WORD_FREQUENCY.map(([word, count]) => `
+    <div class="word-bar-row">
+      <span class="word-bar-label">${word}</span>
+      <div class="word-bar-track"><div class="word-bar-fill" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+      <span class="word-bar-count">${count}</span>
+    </div>`).join('');
 }
 
 document.addEventListener('change', async (e) => {
