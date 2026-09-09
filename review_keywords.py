@@ -90,6 +90,43 @@ def find_comparison_reviews(reviews, min_rating=4):
     return _filter_by_rating(reviews, min_rating, has_comparison)
 
 
+PARENT_PATTERNS = [
+    # "아이"/"딸"은 단어 자체가 흔해서 무관한 단어의 일부로 걸리는 오탐이 있어 제외 처리함
+    # (실제 리뷰로 검증: "아이폰"/"아이디어"/"아이템", "딸기"/"딸깍" - 2026-09-09).
+    r"아이(?!폰|디어|템)",
+    r"딸(?!기|깍)",
+    r"아들", r"자녀", r"우리\s?애", r"저희\s?아이", r"학부모",
+    r"중학생.{0,10}(아들|딸)", r"고등학생.{0,10}(아들|딸)", r"제\s?아이",
+]
+
+STUDENT_PATTERNS = [
+    # "시험기간"은 처음엔 학생 본인 신호로 넣었는데, 실제 리뷰 516건을 다 보니 이 단어가
+    # 나온 5건 전부 부모가 "우리 아이/딸이 시험기간이라"는 식으로 쓴 문장이었음(학생 본인이
+    # 쓴 사례가 하나도 없었음) - 오히려 부모 신호에 가까워서 제거함(2026-09-09). 이 프로젝트
+    # 특성상(구매자=부모가 대부분) "학생 본인" 리뷰 자체가 원래 드묾 - 아래 패턴들도 실제
+    # 데이터엔 자취/기숙사/인강/제 방에서/저는 고3 표현이 아예 한 번도 안 나왔음(전부 0건).
+    r"제가\s?공부할\s?때", r"저는\s?고3", r"제\s?방에서",
+    r"자취", r"기숙사", r"인강\s?볼\s?때",
+]
+
+
+def classify_reviewer(text):
+    """리뷰 작성자가 "부모"(자녀 얘기를 하며 씀)인지 "학생 본인"(1인칭으로 본인 얘기)인지
+    키워드로 추정. 매칭이 하나도 없거나, 둘 다 걸려서 신호가 모순되면 "판단불가"로 분류함
+    (모순인 경우를 부모/학생 어느 한쪽으로 임의로 밀어붙이지 않기 위함 - 사용자가 이 기준을
+    다르게 정하고 싶으면 여기 로직만 바꾸면 됨). 새 표현을 발견하면 PARENT_PATTERNS/
+    STUDENT_PATTERNS에 추가하면 됨(export_dashboard.py의 classify_inquiry와 같은 방식)."""
+    if not text:
+        return "판단불가"
+    is_parent = _matches_any(text, PARENT_PATTERNS)
+    is_student = _matches_any(text, STUDENT_PATTERNS)
+    if is_parent and not is_student:
+        return "부모"
+    if is_student and not is_parent:
+        return "학생 본인"
+    return "판단불가"
+
+
 def extract_hesitation_snippet(text, context=40):
     """망설임 표현이 매칭된 부분 앞뒤로 짧게 잘라서 반환 - "구매 전 의심 포인트" 목록처럼
     리뷰 전문이 아니라 한눈에 훑어볼 짧은 인용구가 필요할 때 씀. 매칭 없으면 빈 문자열."""
