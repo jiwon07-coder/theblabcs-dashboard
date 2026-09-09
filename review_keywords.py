@@ -9,6 +9,11 @@ export_dashboard.py의 classify_inquiry와 같은 방식 - 새 표현을 발견�
 """
 import re
 
+# 리뷰 탭은 현재 판매 중인 이 두 제품만 참고하면 된다고 확정함(2026-09-09) - 오리지널/미니/
+# 오리지널 케이블/미분류 리뷰는 시트엔 그대로 있지만 대시보드·단어빈도 분석엔 안 씀.
+# app.py의 fetch_reviews()와 review_noun_frequency.py의 get_reviews() 둘 다 이걸로 필터링함.
+REVIEW_PRODUCTS = ["오리지널 V2", "프로"]
+
 # 카페24가 리뷰 끝에 자동으로 붙이는 "YYYY-MM-DD ... 에(서) 등록된/작성된 {채널} 구매평" 꼬리.
 # 괄호 유무/"등록된"·"작성된"/"에"·"에서" 조합으로 실제 4가지 변형이 확인됨(2026-09-07,
 # review_noun_frequency.py 작업 중 발견) - 안 지우면 "스마트스토어"가 "스마트"/"스토어"로

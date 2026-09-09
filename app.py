@@ -228,6 +228,7 @@ def fetch_reviews():
         return []
     headers = values[0]
     records = [dict(zip(headers, row)) for row in values[1:] if row]
+    records = [r for r in records if r.get("제품") in review_keywords.REVIEW_PRODUCTS]
     for r in records:
         try:
             rating = float(r.get("별점") or 0)
