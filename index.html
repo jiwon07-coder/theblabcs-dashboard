@@ -11,18 +11,16 @@
   :root{
     --ink:#14171F; --paper:#F4F4F5; --surface:#FFFFFF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
     --amber:#E8A33D; --teal:#2F8F82; --coral:#D9614F; --card-radius: 14px;
-    --good:#2F8F82; --sidebar:#1B1E27; --sidebar-ink:#EDEDEF; --sidebar-line: rgba(237,237,239,0.10);
-    --neon-green:#39FF14; --sidebar-active: rgba(57,255,20,0.16);
+    --good:#2F8F82; --sidebar:#F4F4F5; --sidebar-ink:#14171F; --sidebar-line: rgba(20,23,31,0.10);
+    --sidebar-active-ink:#1B8A3D; --sidebar-active: rgba(27,138,61,0.12);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --ink:#EDEDEF; --paper:#17181C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(237,237,239,0.12);
-      --sidebar:#0F1116; --sidebar-line: rgba(237,237,239,0.08);
     }
   }
   :root[data-theme="dark"]{
     --ink:#EDEDEF; --paper:#17181C; --surface:#1D2027; --slate:#9AA1B2; --line: rgba(237,237,239,0.12);
-    --sidebar:#0F1116; --sidebar-line: rgba(237,237,239,0.08);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);
@@ -32,6 +30,7 @@
 
   /* ===== 사이드바 (기본 숨김, 메뉴 버튼으로 열림) ===== */
   .sidebar{width:236px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);
+    border-right:1px solid var(--sidebar-line);
     display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:110;
     transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
     box-shadow:0 0 0 rgba(0,0,0,0);}
@@ -42,11 +41,11 @@
   .sb-brand{padding:22px 18px 18px 20px;border-bottom:1px solid var(--sidebar-line);
     display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
   .sb-eyebrow{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
-    color:rgba(237,237,239,0.5);margin:0 0 4px;}
+    color:rgba(20,23,31,0.5);margin:0 0 4px;}
   .sb-title{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:17px;font-weight:600;margin:0;letter-spacing:-0.01em;}
-  .sb-close{background:none;border:none;color:rgba(237,237,239,0.55);cursor:pointer;padding:4px;
+  .sb-close{background:none;border:none;color:rgba(20,23,31,0.55);cursor:pointer;padding:4px;
     border-radius:6px;line-height:1;flex:none;margin-top:1px;}
-  .sb-close:hover{color:var(--sidebar-ink);background:rgba(237,237,239,0.08);}
+  .sb-close:hover{color:var(--sidebar-ink);background:rgba(20,23,31,0.08);}
   .sb-close svg{display:block;width:16px;height:16px;}
 
   /* 메뉴 버튼: 사이드바 닫혀있을 때 본문 좌상단에 고정 */
@@ -59,21 +58,32 @@
   .menu-btn.hide{opacity:0;pointer-events:none;}
   .sb-nav{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:3px;}
   .sb-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;
-    border-radius:9px;cursor:pointer;background:none;border:none;color:rgba(237,237,239,0.72);
+    border-radius:9px;cursor:pointer;background:none;border:none;color:rgba(20,23,31,0.72);
     font-family:'Inter','Pretendard',sans-serif;font-size:13.5px;font-weight:500;text-align:left;width:100%;
     transition:background .12s, color .12s;}
-  .sb-item:hover{background:rgba(237,237,239,0.06);color:var(--sidebar-ink);}
-  .sb-item.active{background:var(--sidebar-active);color:var(--neon-green);}
+  .sb-item:hover{background:rgba(20,23,31,0.05);color:var(--sidebar-ink);}
+  .sb-item.active{background:var(--sidebar-active);color:var(--sidebar-active-ink);}
   .sb-item .sb-label{display:flex;align-items:center;gap:9px;}
   .sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0;flex:none;}
   .sb-item.active .sb-dot{opacity:1;}
   .sb-count{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;padding:2px 7px;border-radius:999px;
-    background:rgba(217,97,79,0.22);color:#F0A99C;font-variant-numeric:tabular-nums;}
-  .sb-item.active .sb-count{background:rgba(57,255,20,0.28);color:var(--neon-green);}
-  .sb-count.zero{background:rgba(237,237,239,0.08);color:rgba(237,237,239,0.4);}
+    background:rgba(217,97,79,0.14);color:var(--coral);font-variant-numeric:tabular-nums;}
+  .sb-item.active .sb-count{background:rgba(27,138,61,0.16);color:var(--sidebar-active-ink);}
+  .sb-count.zero{background:rgba(20,23,31,0.06);color:rgba(20,23,31,0.35);}
+  .sb-group-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;
+    padding:12px 12px 6px;margin-top:4px;background:none;border:none;cursor:pointer;
+    font-family:'Inter','Pretendard',sans-serif;font-size:13.5px;font-weight:500;
+    color:rgba(20,23,31,0.45);transition:color .12s;}
+  .sb-group-toggle:hover{color:rgba(20,23,31,0.75);}
+  .sb-chevron{width:14px;height:14px;flex:none;transition:transform .15s;}
+  .sb-group-toggle.expanded .sb-chevron{transform:rotate(180deg);}
+  .sb-group{display:flex;flex-direction:column;gap:3px;overflow:hidden;max-height:0;
+    transition:max-height .18s ease;}
+  .sb-group.expanded{max-height:400px;}
+  .sb-group .sb-item{padding-left:22px;}
   .sb-foot{padding:16px 20px 20px;border-top:1px solid var(--sidebar-line);
-    font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;color:rgba(237,237,239,0.42);line-height:1.7;}
-  .sb-foot strong{color:rgba(237,237,239,0.75);font-weight:500;font-variant-numeric:tabular-nums;}
+    font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;color:rgba(20,23,31,0.45);line-height:1.7;}
+  .sb-foot strong{color:rgba(20,23,31,0.78);font-weight:500;font-variant-numeric:tabular-nums;}
 
   /* ===== 본문 ===== */
   .main{min-width:0;max-width:1100px;margin:0 auto;padding:30px 34px 60px;padding-left:76px;}
@@ -265,6 +275,15 @@
   @media (max-width:520px){
     .sidebar{width:82vw;max-width:300px;}
   }
+
+  /* ===== 넓은 화면에서는 사이드바를 항상 고정 표시, 본문은 나머지 폭을 꽉 채움 ===== */
+  @media (min-width:901px){
+    .sidebar{transform:translateX(0);box-shadow:none;}
+    .sidebar-overlay{display:none;}
+    .menu-btn{display:none;}
+    .sb-close{display:none;}
+    .main{margin-left:236px;max-width:none;padding:30px 40px 60px;}
+  }
 </style>
 </head>
 <body>
@@ -323,28 +342,42 @@
       <button class="sb-item active" data-tab="home">
         <span class="sb-label"><span class="sb-dot"></span>홈</span>
       </button>
-      <button class="sb-item" data-tab="today">
-        <span class="sb-label"><span class="sb-dot"></span>오늘 처리</span>
-        <span class="sb-count" id="sbTodayCount">0</span>
+
+      <button class="sb-group-toggle expanded" data-group="cs">
+        <span>CS</span>
+        <svg class="sb-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
       </button>
-      <button class="sb-item" data-tab="chat">
-        <span class="sb-label"><span class="sb-dot"></span>채팅 상담</span>
-        <span class="sb-count" id="sbChatCount">0</span>
+      <div class="sb-group expanded" id="sbGroup-cs">
+        <button class="sb-item" data-tab="today">
+          <span class="sb-label"><span class="sb-dot"></span>오늘 처리</span>
+          <span class="sb-count" id="sbTodayCount">0</span>
+        </button>
+        <button class="sb-item" data-tab="chat">
+          <span class="sb-label"><span class="sb-dot"></span>채팅 상담</span>
+          <span class="sb-count" id="sbChatCount">0</span>
+        </button>
+        <button class="sb-item" data-tab="templates">
+          <span class="sb-label"><span class="sb-dot"></span>템플릿</span>
+        </button>
+      </div>
+
+      <button class="sb-group-toggle expanded" data-group="analysis">
+        <span>데이터 분석</span>
+        <svg class="sb-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
       </button>
-      <button class="sb-item" data-tab="templates">
-        <span class="sb-label"><span class="sb-dot"></span>템플릿</span>
-      </button>
-      <button class="sb-item" data-tab="weekly">
-        <span class="sb-label"><span class="sb-dot"></span>주간 분석</span>
-        <span class="sb-count" id="sbWeekCount">0</span>
-      </button>
-      <button class="sb-item" data-tab="products">
-        <span class="sb-label"><span class="sb-dot"></span>제품별 분석</span>
-      </button>
-      <button class="sb-item" data-tab="review">
-        <span class="sb-label"><span class="sb-dot"></span>리뷰</span>
-        <span class="sb-count" id="sbReviewCount">0</span>
-      </button>
+      <div class="sb-group expanded" id="sbGroup-analysis">
+        <button class="sb-item" data-tab="weekly">
+          <span class="sb-label"><span class="sb-dot"></span>주간 분석</span>
+          <span class="sb-count" id="sbWeekCount">0</span>
+        </button>
+        <button class="sb-item" data-tab="products">
+          <span class="sb-label"><span class="sb-dot"></span>제품별 분석</span>
+        </button>
+        <button class="sb-item" data-tab="review">
+          <span class="sb-label"><span class="sb-dot"></span>리뷰</span>
+          <span class="sb-count" id="sbReviewCount">0</span>
+        </button>
+      </div>
     </div>
     <div class="sb-foot">
       채널에서 데이터 불러온 시각<br><strong id="lastDataLoad">-</strong><br>
@@ -764,9 +797,16 @@ const TAB_META = {
   products: { eyebrow: 'Products', title: '제품별 분석' },
   review: { eyebrow: 'Reviews', title: '리뷰' },
 };
+const TAB_GROUP = { today: 'cs', chat: 'cs', templates: 'cs', weekly: 'analysis', products: 'analysis', review: 'analysis' };
+function expandGroup(group) {
+  if (!group) return;
+  document.getElementById('sbGroup-' + group)?.classList.add('expanded');
+  document.querySelector(`.sb-group-toggle[data-group="${group}"]`)?.classList.add('expanded');
+}
 function switchTab(tab) {
   document.querySelectorAll('.sb-item').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
   document.querySelectorAll('.tab-panel').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
+  expandGroup(TAB_GROUP[tab]);
   document.getElementById('pageEyebrow').textContent = TAB_META[tab].eyebrow;
   document.getElementById('pageTitle').textContent = TAB_META[tab].title;
   if (tab === 'weekly') { renderAnalysis(); }
@@ -774,6 +814,12 @@ function switchTab(tab) {
   if (tab === 'templates') { renderTemplatesTab(); }
 }
 document.getElementById('sbNav').addEventListener('click', (e) => {
+  const groupBtn = e.target.closest('.sb-group-toggle');
+  if (groupBtn) {
+    groupBtn.classList.toggle('expanded');
+    document.getElementById('sbGroup-' + groupBtn.dataset.group).classList.toggle('expanded');
+    return;
+  }
   const btn = e.target.closest('.sb-item');
   if (btn) { switchTab(btn.dataset.tab); closeSidebar(); }
 });
