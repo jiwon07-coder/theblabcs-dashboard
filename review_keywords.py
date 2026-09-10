@@ -100,29 +100,27 @@ PARENT_PATTERNS = [
 ]
 
 STUDENT_PATTERNS = [
-    # "시험기간"은 처음엔 학생 본인 신호로 넣었는데, 실제 리뷰 516건을 다 보니 이 단어가
-    # 나온 5건 전부 부모가 "우리 아이/딸이 시험기간이라"는 식으로 쓴 문장이었음(학생 본인이
-    # 쓴 사례가 하나도 없었음) - 오히려 부모 신호에 가까워서 제거함(2026-09-09). 이 프로젝트
-    # 특성상(구매자=부모가 대부분) "학생 본인" 리뷰 자체가 원래 드묾 - 아래 패턴들도 실제
-    # 데이터엔 자취/기숙사/인강/제 방에서/저는 고3 표현이 아예 한 번도 안 나왔음(전부 0건).
-    r"제가\s?공부할\s?때", r"저는\s?고3", r"제\s?방에서",
+    # "공부"/"시험"류 표현은 부모가 자녀 얘기하면서도 흔히 씀(예: "아이가 공부할 때",
+    # "아이 시험기간이라") - classify_reviewer가 **부모 신호를 먼저 확인하고 우선시**하도록
+    # 바뀌어서(2026-09-10), 이제 이 표현들이 부모 리뷰와 겹쳐도 안전하게 넓게 잡을 수 있음
+    # (부모 패턴에 안 걸린 나머지 리뷰 중에서만 아래 표현으로 학생 본인을 판단하게 됨).
+    r"공부", r"시험", r"제\s?방에서",
     r"자취", r"기숙사", r"인강\s?볼\s?때",
 ]
 
 
 def classify_reviewer(text):
     """리뷰 작성자가 "부모"(자녀 얘기를 하며 씀)인지 "학생 본인"(1인칭으로 본인 얘기)인지
-    키워드로 추정. 매칭이 하나도 없거나, 둘 다 걸려서 신호가 모순되면 "판단불가"로 분류함
-    (모순인 경우를 부모/학생 어느 한쪽으로 임의로 밀어붙이지 않기 위함 - 사용자가 이 기준을
-    다르게 정하고 싶으면 여기 로직만 바꾸면 됨). 새 표현을 발견하면 PARENT_PATTERNS/
-    STUDENT_PATTERNS에 추가하면 됨(export_dashboard.py의 classify_inquiry와 같은 방식)."""
+    키워드로 추정. **부모 신호를 먼저 확인**하고(자녀 얘기를 하면서 "공부"/"시험" 같은
+    표현도 같이 쓰는 경우가 많아서, 부모 쪽이 더 확실한 신호로 보고 우선시함), 부모
+    패턴에 안 걸린 리뷰에 한해서만 학생 본인 패턴을 확인함. 둘 다 안 걸리면 "판단불가".
+    새 표현을 발견하면 PARENT_PATTERNS/STUDENT_PATTERNS에 추가하면 됨(export_dashboard.py의
+    classify_inquiry와 같은 방식)."""
     if not text:
         return "판단불가"
-    is_parent = _matches_any(text, PARENT_PATTERNS)
-    is_student = _matches_any(text, STUDENT_PATTERNS)
-    if is_parent and not is_student:
+    if _matches_any(text, PARENT_PATTERNS):
         return "부모"
-    if is_student and not is_parent:
+    if _matches_any(text, STUDENT_PATTERNS):
         return "학생 본인"
     return "판단불가"
 
