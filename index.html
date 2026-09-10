@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --ink:#14171F; --paper:#F4F4F5; --surface:#FFFFFF; --slate:#5B6274; --line: rgba(20,23,31,0.10);
@@ -238,6 +239,23 @@
   .doubt-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
   .doubt-item:last-child{border-bottom:none;}
   .doubt-item p{margin:0;font-size:12.5px;color:var(--ink);line-height:1.6;flex:1;}
+
+  .target-insight-layout{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:start;}
+  @media (max-width:900px){.target-insight-layout{grid-template-columns:1fr;}}
+  .target-chart-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .target-chart-wrap canvas{max-width:200px;max-height:200px;}
+  .target-legend{flex-direction:column;align-items:flex-start;gap:8px;}
+  .target-segments{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:700px){.target-segments{grid-template-columns:1fr;}}
+  .target-segment-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
+    padding:14px 16px;}
+  .target-segment-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .target-segment-head h4{margin:0;font-size:13.5px;font-weight:600;color:var(--ink);}
+  .target-segment-head .n{margin-left:auto;font-size:11px;color:var(--slate);
+    font-family:'IBM Plex Mono','Pretendard',monospace;}
+  .target-quote{font-size:12.5px;color:var(--ink);line-height:1.6;padding:10px 0;border-bottom:1px solid var(--line);}
+  .target-quote:last-child{border-bottom:none;}
+  .target-quote .chip{display:block;margin-bottom:4px;}
 
   .word-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px;}
   .word-bar-label{width:64px;flex:none;color:var(--ink);font-weight:500;}
@@ -565,6 +583,38 @@
         <div id="wordFreqList"></div>
       </div>
 
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>타겟 인사이트</h3>
+          <select id="fTargetProduct"><option value="all">전체 제품</option></select>
+        </div>
+        <p class="sub">리뷰 작성자가 부모인지 학생 본인인지 키워드로 추정한 결과예요 (구매자=부모가 대부분이라 "그 외" 비중이 높을 수 있어요)</p>
+        <div class="target-insight-layout">
+          <div class="target-chart-wrap">
+            <canvas id="targetChart" width="200" height="200"></canvas>
+            <div class="legend target-legend" id="targetLegend"></div>
+          </div>
+          <div class="target-segments">
+            <div class="target-segment-card">
+              <div class="target-segment-head">
+                <span class="dot" style="background:#E8A33D"></span>
+                <h4>부모가 남긴 리뷰</h4>
+                <span class="n" id="targetParentCount">0건</span>
+              </div>
+              <div id="targetParentQuotes"></div>
+            </div>
+            <div class="target-segment-card">
+              <div class="target-segment-head">
+                <span class="dot" style="background:#2F8F82"></span>
+                <h4>학생 본인이 남긴 리뷰</h4>
+                <span class="n" id="targetStudentCount">0건</span>
+              </div>
+              <div id="targetStudentQuotes"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel section" id="reviewPanel">
         <div class="todayHeadRow">
           <p class="sub"><span id="reviewCount">0</span>건</p>
@@ -723,6 +773,9 @@ function minorOptionsHtml(selected) {
 const isChat = (r) => CHAT_CHANNELS.includes(r['채널']);
 const TYPE_ORDER = ['사용 방법', '제품 불량', '배송문의', '기타 문의'];
 const TYPE_COLOR = {'사용 방법':'#E8A33D', '제품 불량':'#D9614F', '배송문의':'#2F8F82', '기타 문의':'#5B6274'};
+const TARGET_ORDER = ['부모', '학생 본인', '그 외'];
+const TARGET_COLOR = {'부모':'#E8A33D', '학생 본인':'#2F8F82', '그 외':'#5B6274'};
+let targetChart = null;
 
 async function loadData(pw) {
   try {
@@ -748,6 +801,7 @@ async function loadData(pw) {
     renderCopyCandidates();
     renderDoubtPoints();
     renderWordFrequency();
+    renderTargetInsight();
     return 'ok';
   } catch (e) {
     document.getElementById('loadError').style.display = 'block';
@@ -1104,6 +1158,9 @@ function initFilters() {
 
   fill('fReviewProduct', unique(REVIEWS, '제품'));
   ['fReviewProduct','fReviewRating','fReviewPeriod','fReviewAd','fReviewNarrative'].forEach(id => document.getElementById(id).addEventListener('change', renderReviews));
+
+  fill('fTargetProduct', unique(REVIEWS, '제품'));
+  document.getElementById('fTargetProduct').addEventListener('change', renderTargetInsight);
 
   const analysisSel = document.getElementById('fAnalysisWeek');
   analysisSel.innerHTML = '';
@@ -1474,6 +1531,67 @@ function renderDoubtPoints() {
       <span class="chip">${r['제품']||'-'}</span>
       <p>"${r['의심포인트']}"</p>
     </div>`).join('');
+}
+
+function renderTargetSegment(target, rows, countId, listId) {
+  const matched = rows.filter(r => (r['추정타겟'] || '그 외') === target);
+  document.getElementById(countId).textContent = matched.length + '건';
+  const quotes = matched.slice()
+    .sort((a, b) => (b['리뷰내용']||'').length - (a['리뷰내용']||'').length)
+    .slice(0, 4);
+  const list = document.getElementById(listId);
+  if (!quotes.length) { list.innerHTML = '<p class="empty-state" style="padding:14px 0;">해당하는 리뷰가 없어요.</p>'; return; }
+  list.innerHTML = quotes.map(r => `
+    <div class="target-quote">
+      <span class="chip">${r['제품']||'-'} · ${starString(r['별점'])}</span>
+      ${r['리뷰내용']||''}
+    </div>`).join('');
+}
+
+function renderTargetInsight() {
+  const fProduct = document.getElementById('fTargetProduct').value;
+  const rows = REVIEWS.filter(r => fProduct === 'all' || r['제품'] === fProduct);
+  const counts = TARGET_ORDER.map(t => rows.filter(r => (r['추정타겟'] || '그 외') === t).length);
+  const total = counts.reduce((a, b) => a + b, 0);
+
+  const chartData = {
+    labels: TARGET_ORDER,
+    datasets: [{
+      data: counts,
+      backgroundColor: TARGET_ORDER.map(t => TARGET_COLOR[t]),
+      borderColor: getComputedStyle(document.body).getPropertyValue('--surface').trim() || '#fff',
+      borderWidth: 2,
+    }],
+  };
+  if (targetChart) {
+    targetChart.data = chartData;
+    targetChart.update();
+  } else {
+    targetChart = new Chart(document.getElementById('targetChart').getContext('2d'), {
+      type: 'doughnut',
+      data: chartData,
+      options: {
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (item) => {
+            const n = item.raw;
+            const pct = total ? (n / total * 100).toFixed(1) : '0.0';
+            return ` ${item.label}: ${n}건 (${pct}%)`;
+          } } },
+        },
+      },
+    });
+  }
+
+  document.getElementById('targetLegend').innerHTML = TARGET_ORDER.map((t, i) => {
+    const n = counts[i];
+    const pct = total ? (n / total * 100).toFixed(1) : '0.0';
+    return `<span><span class="dot" style="background:${TARGET_COLOR[t]}"></span>${t} ${n}건 (${pct}%)</span>`;
+  }).join('');
+
+  renderTargetSegment('부모', rows, 'targetParentCount', 'targetParentQuotes');
+  renderTargetSegment('학생 본인', rows, 'targetStudentCount', 'targetStudentQuotes');
 }
 
 function renderWordFrequency() {
