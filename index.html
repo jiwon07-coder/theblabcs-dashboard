@@ -256,6 +256,8 @@
   .target-quote{font-size:12.5px;color:var(--ink);line-height:1.6;padding:10px 0;border-bottom:1px solid var(--line);}
   .target-quote:last-child{border-bottom:none;}
   .target-quote .chip{display:block;margin-bottom:4px;}
+  .target-segment-card > .tpl-toggle-btn{margin-top:6px;padding:0;}
+  .target-full-list{margin-top:8px;max-height:360px;overflow-y:auto;}
 
   .word-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px;}
   .word-bar-label{width:64px;flex:none;color:var(--ink);font-weight:500;}
@@ -602,6 +604,8 @@
                 <span class="n" id="targetParentCount">0건</span>
               </div>
               <div id="targetParentQuotes"></div>
+              <button class="link-btn tpl-toggle-btn" id="targetParentToggle" data-target="targetParentFull">전체 0개 보기 ▾</button>
+              <div id="targetParentFull" class="target-full-list" style="display:none;"></div>
             </div>
             <div class="target-segment-card">
               <div class="target-segment-head">
@@ -610,6 +614,8 @@
                 <span class="n" id="targetStudentCount">0건</span>
               </div>
               <div id="targetStudentQuotes"></div>
+              <button class="link-btn tpl-toggle-btn" id="targetStudentToggle" data-target="targetStudentFull">전체 0개 보기 ▾</button>
+              <div id="targetStudentFull" class="target-full-list" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -1533,17 +1539,33 @@ function renderDoubtPoints() {
     </div>`).join('');
 }
 
-function renderTargetSegment(target, rows, countId, listId) {
+function renderTargetSegment(target, rows, countId, listId, toggleId, fullListId) {
   const matched = rows.filter(r => (r['추정타겟'] || '그 외') === target);
   document.getElementById(countId).textContent = matched.length + '건';
   const quotes = matched.slice()
     .sort((a, b) => (b['리뷰내용']||'').length - (a['리뷰내용']||'').length)
     .slice(0, 4);
   const list = document.getElementById(listId);
-  if (!quotes.length) { list.innerHTML = '<p class="empty-state" style="padding:14px 0;">해당하는 리뷰가 없어요.</p>'; return; }
-  list.innerHTML = quotes.map(r => `
+  if (!quotes.length) { list.innerHTML = '<p class="empty-state" style="padding:14px 0;">해당하는 리뷰가 없어요.</p>'; }
+  else {
+    list.innerHTML = quotes.map(r => `
+      <div class="target-quote">
+        <span class="chip">${r['날짜']||''} · ${r['제품']||'-'} · ${starString(r['별점'])}</span>
+        ${r['리뷰내용']||''}
+      </div>`).join('');
+  }
+
+  // 아코디언 - 기본은 접힌 상태, 버튼 누르면 세그먼트 전체 리뷰를 펼쳐봄(tpl-toggle-btn
+  // 클릭 핸들러가 display 토글을 처리함 - 템플릿/채팅 전체보기와 같은 공용 메커니즘)
+  const toggleBtn = document.getElementById(toggleId);
+  const fullList = document.getElementById(fullListId);
+  toggleBtn.textContent = `전체 ${matched.length}개 보기 ▾`;
+  toggleBtn.style.display = matched.length ? '' : 'none';
+  fullList.style.display = 'none';
+  const sorted = matched.slice().sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
+  fullList.innerHTML = sorted.map(r => `
     <div class="target-quote">
-      <span class="chip">${r['제품']||'-'} · ${starString(r['별점'])}</span>
+      <span class="chip">${r['날짜']||''} · ${r['제품']||'-'} · ${starString(r['별점'])}</span>
       ${r['리뷰내용']||''}
     </div>`).join('');
 }
@@ -1590,8 +1612,8 @@ function renderTargetInsight() {
     return `<span><span class="dot" style="background:${TARGET_COLOR[t]}"></span>${t} ${n}건 (${pct}%)</span>`;
   }).join('');
 
-  renderTargetSegment('부모', rows, 'targetParentCount', 'targetParentQuotes');
-  renderTargetSegment('학생 본인', rows, 'targetStudentCount', 'targetStudentQuotes');
+  renderTargetSegment('부모', rows, 'targetParentCount', 'targetParentQuotes', 'targetParentToggle', 'targetParentFull');
+  renderTargetSegment('학생 본인', rows, 'targetStudentCount', 'targetStudentQuotes', 'targetStudentToggle', 'targetStudentFull');
 }
 
 function renderWordFrequency() {
