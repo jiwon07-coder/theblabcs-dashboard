@@ -113,16 +113,16 @@ def classify_reviewer(text):
     """리뷰 작성자가 "부모"(자녀 얘기를 하며 씀)인지 "학생 본인"(1인칭으로 본인 얘기)인지
     키워드로 추정. **부모 신호를 먼저 확인**하고(자녀 얘기를 하면서 "공부"/"시험" 같은
     표현도 같이 쓰는 경우가 많아서, 부모 쪽이 더 확실한 신호로 보고 우선시함), 부모
-    패턴에 안 걸린 리뷰에 한해서만 학생 본인 패턴을 확인함. 둘 다 안 걸리면 "판단불가".
+    패턴에 안 걸린 리뷰에 한해서만 학생 본인 패턴을 확인함. 둘 다 안 걸리면 "그 외".
     새 표현을 발견하면 PARENT_PATTERNS/STUDENT_PATTERNS에 추가하면 됨(export_dashboard.py의
     classify_inquiry와 같은 방식)."""
     if not text:
-        return "판단불가"
+        return "그 외"
     if _matches_any(text, PARENT_PATTERNS):
         return "부모"
     if _matches_any(text, STUDENT_PATTERNS):
         return "학생 본인"
-    return "판단불가"
+    return "그 외"
 
 
 def extract_hesitation_snippet(text, context=40):
