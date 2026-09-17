@@ -37,7 +37,7 @@
   .sidebar{width:236px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);
     border-right:1px solid var(--sidebar-line);
     display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:110;
-    transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1), width .2s ease;
     box-shadow:0 0 0 rgba(0,0,0,0);}
   .sidebar.open{transform:translateX(0);box-shadow:2px 0 24px rgba(0,0,0,0.18);}
   .sidebar-overlay{position:fixed;inset:0;background:rgba(15,17,22,0.38);z-index:105;
@@ -68,9 +68,16 @@
     transition:background .12s, color .12s;}
   .sb-item:hover{background:rgba(20,23,31,0.05);color:var(--sidebar-ink);}
   .sb-item.active{background:var(--sidebar-active);color:var(--sidebar-active-ink);}
-  .sb-item .sb-label{display:flex;align-items:center;gap:9px;}
+  .sb-item .sb-label{display:flex;align-items:center;gap:9px;min-width:0;}
   .sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0;flex:none;}
   .sb-item.active .sb-dot{opacity:1;}
+  .sb-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sb-icon-wrap{position:relative;display:flex;align-items:center;justify-content:center;flex:none;}
+  .sb-icon{width:18px;height:18px;flex:none;}
+  .sb-notif-dot{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;
+    background:var(--coral);display:none;border:1.5px solid var(--sidebar);}
+  .sidebar.collapsed .sb-notif-dot.show{display:block;}
+  .sb-group-toggle-label{display:flex;align-items:center;gap:9px;min-width:0;}
   .sb-count{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;padding:2px 7px;border-radius:999px;
     background:rgba(217,97,79,0.14);color:var(--coral);font-variant-numeric:tabular-nums;}
   .sb-item.active .sb-count{background:rgba(27,138,61,0.16);color:var(--sidebar-active-ink);}
@@ -90,8 +97,21 @@
     font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;color:rgba(20,23,31,0.45);line-height:1.7;}
   .sb-foot strong{color:rgba(20,23,31,0.78);font-weight:500;font-variant-numeric:tabular-nums;}
 
+  /* ===== 사이드바 접기(아이콘만 모드) - 데스크탑(901px 이상) 전용, 모바일 오버레이 방식(.open)과는 별개 ===== */
+  .sb-collapse-row{padding:6px 10px;border-top:1px solid var(--sidebar-line);display:flex;justify-content:flex-end;}
+  .sb-collapse-btn{background:none;border:none;color:rgba(20,23,31,0.45);cursor:pointer;
+    padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+  .sb-collapse-btn:hover{background:rgba(20,23,31,0.08);color:var(--sidebar-ink);}
+  .sb-collapse-btn svg{width:16px;height:16px;flex:none;transition:transform .2s;}
+  @media (max-width:900px){ .sb-collapse-row{display:none;} }
+  /* .sidebar.collapsed의 실제 효과(폭 축소/라벨 숨김)는 데스크탑 전용이라 아래
+     @media(min-width:901px) 블록 안에 몰아넣음 - 모바일에서 이 클래스가 우연히
+     남아있어도(예: 데스크탑에서 접은 채로 창을 좁혀도) 모바일 오버레이 방식(.open)엔
+     전혀 영향 없게 하기 위함. */
+
   /* ===== 본문 ===== */
-  .main{min-width:0;max-width:1100px;margin:0 auto;padding:30px 34px 60px;padding-left:76px;}
+  .main{min-width:0;max-width:1100px;margin:0 auto;padding:30px 34px 60px;padding-left:76px;
+    transition:margin-left .2s ease;}
   .page-head{margin-bottom:22px;}
   .page-eyebrow{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;
     color:var(--slate);margin:0 0 4px;}
@@ -312,6 +332,24 @@
     .menu-btn{display:none;}
     .sb-close{display:none;}
     .main{margin-left:236px;max-width:none;padding:30px 40px 60px;}
+
+    /* ===== 사이드바 접기(아이콘만 모드) - 데스크탑 전용 ===== */
+    .sidebar.collapsed{width:76px;}
+    .sidebar.collapsed ~ .main{margin-left:76px;}
+    .sidebar.collapsed .sb-title,
+    .sidebar.collapsed .sb-eyebrow,
+    .sidebar.collapsed .sb-text,
+    .sidebar.collapsed .sb-dot,
+    .sidebar.collapsed .sb-count,
+    .sidebar.collapsed .sb-chevron,
+    .sidebar.collapsed .sb-group-toggle-text,
+    .sidebar.collapsed .sb-foot { display:none; }
+    .sidebar.collapsed .sb-group{ max-height:0 !important; }
+    .sidebar.collapsed .sb-item,
+    .sidebar.collapsed .sb-group-toggle{ justify-content:center; }
+    .sidebar.collapsed .sb-brand{ justify-content:center; padding:20px 0; }
+    .sidebar.collapsed .sb-collapse-row{justify-content:center;}
+    .sidebar.collapsed .sb-collapse-btn svg{transform:rotate(180deg);}
   }
 </style>
 </head>
@@ -358,6 +396,17 @@
 <div class="shell" id="dashboardContent">
   <div class="sidebar-overlay" id="sbOverlay"></div>
   <nav class="sidebar" id="sidebar">
+    <script>
+      // 사이드바 접힘 상태 복원을 여기(브랜드/메뉴가 그려지기 전)에서 동기적으로 처리 -
+      // 아래쪽 메인 스크립트가 실행될 때까지 기다리면 236px로 한 번 그려졌다가 76px로
+      // 줄어드는 게 눈에 보임(비밀번호 게이트 깜빡임 방지와 같은 이유, 위 스크립트 참고).
+      // 데스크탑(901px 이상)에서만 의미 있는 기능이라 그 폭에서만 복원함.
+      try {
+        if (window.innerWidth >= 901 && localStorage.getItem('cs_sidebar_collapsed') === '1') {
+          document.getElementById('sidebar').classList.add('collapsed');
+        }
+      } catch (e) {}
+    </script>
     <div class="sb-brand">
       <div>
         <p class="sb-eyebrow">CS Control Desk</p>
@@ -369,44 +418,82 @@
     </div>
     <div class="sb-nav" id="sbNav">
       <button class="sb-item active" data-tab="home">
-        <span class="sb-label"><span class="sb-dot"></span>홈</span>
+        <span class="sb-label">
+          <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v8.5a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1V10"/></svg></span>
+          <span class="sb-dot"></span><span class="sb-text">홈</span>
+        </span>
       </button>
 
       <button class="sb-group-toggle expanded" data-group="cs">
-        <span>CS</span>
+        <span class="sb-group-toggle-label">
+          <span class="sb-icon-wrap">
+            <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2.5" y="14" width="4" height="6" rx="1.5"/><rect x="17.5" y="14" width="4" height="6" rx="1.5"/></svg>
+            <span class="sb-notif-dot" id="sbCsNotifDot"></span>
+          </span>
+          <span class="sb-group-toggle-text">CS</span>
+        </span>
         <svg class="sb-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
       </button>
       <div class="sb-group expanded" id="sbGroup-cs">
         <button class="sb-item" data-tab="today">
-          <span class="sb-label"><span class="sb-dot"></span>오늘 처리</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 .01.01M4 12l.01.01M4 18l.01.01"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">오늘 처리</span>
+          </span>
           <span class="sb-count" id="sbTodayCount">0</span>
         </button>
         <button class="sb-item" data-tab="chat">
-          <span class="sb-label"><span class="sb-dot"></span>채팅 상담</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-4.8 7.6 8.5 8.5 0 0 1-9.4-1.4L3 21l1.3-3.8a8.5 8.5 0 0 1-1.3-4.5 8.38 8.38 0 0 1 4.8-7.6 8.5 8.5 0 0 1 9.4 1.4A8.38 8.38 0 0 1 21 11.5Z"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">채팅 상담</span>
+          </span>
           <span class="sb-count" id="sbChatCount">0</span>
         </button>
         <button class="sb-item" data-tab="templates">
-          <span class="sb-label"><span class="sb-dot"></span>템플릿</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7.5z"/><path d="M13 3v4.5H17.5"/><path d="M9 13h6M9 17h6"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">템플릿</span>
+          </span>
         </button>
       </div>
 
       <button class="sb-group-toggle expanded" data-group="analysis">
-        <span>데이터 분석</span>
+        <span class="sb-group-toggle-label">
+          <span class="sb-icon-wrap">
+            <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-7"/></svg>
+            <span class="sb-notif-dot" id="sbAnalysisNotifDot"></span>
+          </span>
+          <span class="sb-group-toggle-text">데이터 분석</span>
+        </span>
         <svg class="sb-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>
       </button>
       <div class="sb-group expanded" id="sbGroup-analysis">
         <button class="sb-item" data-tab="weekly">
-          <span class="sb-label"><span class="sb-dot"></span>주간 분석</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M8 3v3.5M16 3v3.5M3.5 9.5h17"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">주간 분석</span>
+          </span>
           <span class="sb-count" id="sbWeekCount">0</span>
         </button>
         <button class="sb-item" data-tab="products">
-          <span class="sb-label"><span class="sb-dot"></span>제품별 분석</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a1.8 1.8 0 0 0-.9-1.55l-7-4a1.8 1.8 0 0 0-1.8 0l-7 4A1.8 1.8 0 0 0 3 8v8a1.8 1.8 0 0 0 .9 1.55l7 4a1.8 1.8 0 0 0 1.8 0l7-4A1.8 1.8 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5M12 22v-10"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">제품별 분석</span>
+          </span>
         </button>
         <button class="sb-item" data-tab="review">
-          <span class="sb-label"><span class="sb-dot"></span>리뷰</span>
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.8 6.3.7-4.6 4.4 1.2 6.2L12 17l-5.6 3.1 1.2-6.2L3 9.5l6.3-.7Z"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">리뷰</span>
+          </span>
           <span class="sb-count" id="sbReviewCount">0</span>
         </button>
       </div>
+    </div>
+    <div class="sb-collapse-row">
+      <button class="sb-collapse-btn" id="sbCollapseToggle" aria-label="사이드바 접기/펼치기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 17-5-5 5-5"/><path d="m20 17-5-5 5-5"/></svg>
+      </button>
     </div>
     <div class="sb-foot">
       채널에서 데이터 불러온 시각<br><strong id="lastDataLoad">-</strong><br>
@@ -912,6 +999,14 @@ function switchTab(tab) {
 document.getElementById('sbNav').addEventListener('click', (e) => {
   const groupBtn = e.target.closest('.sb-group-toggle');
   if (groupBtn) {
+    // 축소(아이콘만) 모드에선 서브메뉴가 안 보이니, 그룹 아이콘을 누르면 사이드바를
+    // 펼치면서 그 그룹도 같이 열어줌 - 접힌 채로 펼쳐지면 한 번 더 눌러야 해서 어색함.
+    if (sidebarEl.classList.contains('collapsed')) {
+      setCollapsed(false);
+      groupBtn.classList.add('expanded');
+      document.getElementById('sbGroup-' + groupBtn.dataset.group).classList.add('expanded');
+      return;
+    }
     groupBtn.classList.toggle('expanded');
     document.getElementById('sbGroup-' + groupBtn.dataset.group).classList.toggle('expanded');
     return;
@@ -989,12 +1084,29 @@ document.getElementById('sbClose').addEventListener('click', closeSidebar);
 overlayEl.addEventListener('click', closeSidebar);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
 
+// ===== 사이드바 접기(아이콘만 모드) - .sidebar.open(모바일 오버레이)과는 별개 상태 =====
+// 새로고침 시 이전 상태 복원은 <nav id="sidebar"> 바로 뒤 인라인 스크립트에서 이미
+// 동기적으로 처리함(깜빡임 방지) - 여기서는 토글 버튼 클릭과 저장만 담당.
+const COLLAPSE_KEY = 'cs_sidebar_collapsed';
+function setCollapsed(v) {
+  sidebarEl.classList.toggle('collapsed', v);
+  try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0'); } catch (e) {}
+}
+document.getElementById('sbCollapseToggle').addEventListener('click', () => {
+  setCollapsed(!sidebarEl.classList.contains('collapsed'));
+});
+
 function renderToday() {
   const rows = allData.filter(r => !isChat(r) && r['처리상태'] !== '완료');
   document.getElementById('todayCount').textContent = rows.length;
   const sbCount = document.getElementById('sbTodayCount');
   sbCount.textContent = rows.length;
   sbCount.classList.toggle('zero', rows.length === 0);
+  // 축소 모드에선 숫자 배지 대신 CS 그룹 아이콘에 작은 점만 표시(오늘 처리할 게 있을 때만).
+  // "데이터 분석" 쪽(리뷰 신규 건수 등)은 지금 데이터에 그 값이 없어서 아직 미구현 -
+  // app.py가 "최근 7일 신규 리뷰 수" 같은 값을 내려주게 되면 sbAnalysisNotifDot에도
+  // 같은 방식으로 붙이면 됨.
+  document.getElementById('sbCsNotifDot').classList.toggle('show', rows.length > 0);
 
   document.getElementById('commonTplBody').innerHTML = renderTemplateList(commonTemplates());
 
