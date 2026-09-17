@@ -248,6 +248,8 @@
   .target-chart-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
   .target-chart-wrap canvas{max-width:200px;max-height:200px;}
   .target-legend{flex-direction:column;align-items:flex-start;gap:8px;}
+  .target-other-note{font-size:11px;color:var(--slate);text-align:left;margin:2px 0 0;
+    display:flex;align-items:center;gap:6px;}
   .target-segments{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media (max-width:700px){.target-segments{grid-template-columns:1fr;}}
   .target-segment-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
@@ -262,10 +264,14 @@
   .target-segment-card > .tpl-toggle-btn{margin-top:6px;padding:0;}
   .target-full-list{margin-top:8px;max-height:360px;overflow-y:auto;}
 
+  .word-freq-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  @media (max-width:700px){.word-freq-columns{grid-template-columns:1fr;}}
   .word-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px;}
   .word-bar-label{width:64px;flex:none;color:var(--ink);font-weight:500;}
   .word-bar-track{flex:1;background:var(--paper);border-radius:6px;height:16px;overflow:hidden;}
   .word-bar-fill{height:100%;background:var(--teal);border-radius:6px;}
+  .word-bar-fill-parent{background:var(--target-parent);}
+  .word-bar-fill-student{background:var(--target-student);}
   .word-bar-count{width:36px;flex:none;text-align:right;color:var(--slate);
     font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;}
   .review-content{font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap;margin:0 0 10px;}
@@ -573,11 +579,12 @@
           <h3>타겟 인사이트</h3>
           <select id="fTargetProduct"><option value="all">전체 제품</option></select>
         </div>
-        <p class="sub">리뷰 작성자가 부모인지 학생 본인인지 키워드로 추정한 결과예요 (구매자=부모가 대부분이라 "그 외" 비중이 높을 수 있어요)</p>
+        <p class="sub">리뷰 작성자가 부모인지 학생 본인인지 키워드로 추정한 결과예요. 비율은 판별 가능했던 리뷰(부모+학생 본인)만 기준으로 계산해요</p>
         <div class="target-insight-layout">
           <div class="target-chart-wrap">
             <canvas id="targetChart" width="200" height="200"></canvas>
             <div class="legend target-legend" id="targetLegend"></div>
+            <p class="target-other-note" id="targetOtherNote"></p>
           </div>
           <div class="target-segments">
             <div class="target-segment-card">
@@ -606,8 +613,17 @@
 
       <div class="panel section">
         <h3>자주 나오는 단어</h3>
-        <p class="sub">리뷰 전체에서 명사만 추출(konlpy) - 매일 자동 갱신</p>
-        <div id="wordFreqList"></div>
+        <p class="sub">부모/학생 본인으로 분류된 리뷰에서 각각 명사만 추출(konlpy) - 두 그룹 모두에서 흔한 단어는 제외하고 상대적으로 두드러지는 단어 위주로 보여줘요 · 매일 자동 갱신</p>
+        <div class="word-freq-columns">
+          <div class="word-freq-col">
+            <h4 class="chart-subtitle">부모 리뷰</h4>
+            <div id="wordFreqParentList"></div>
+          </div>
+          <div class="word-freq-col">
+            <h4 class="chart-subtitle">학생 본인 리뷰</h4>
+            <div id="wordFreqStudentList"></div>
+          </div>
+        </div>
       </div>
 
       <div class="panel section">
@@ -707,7 +723,7 @@ let allData = [];
 let PRODUCT_SUMMARIES = {};
 let TEMPLATES = [];
 let REVIEWS = [];
-let WORD_FREQUENCY = [];
+let WORD_FREQUENCY = {'부모': [], '학생 본인': []};
 let chatChannelFilter = 'all';
 
 function collapsibleCell(text, extraClass) {
@@ -793,7 +809,6 @@ function minorOptionsHtml(selected) {
 const isChat = (r) => CHAT_CHANNELS.includes(r['채널']);
 const TYPE_ORDER = ['사용 방법', '제품 불량', '배송문의', '기타 문의'];
 const TYPE_COLOR = {'사용 방법':'#E8A33D', '제품 불량':'#D9614F', '배송문의':'#2F8F82', '기타 문의':'#5B6274'};
-const TARGET_ORDER = ['부모', '학생 본인', '그 외'];
 // 색상은 하드코딩하지 않고 :root의 --target-parent/--target-student/--target-other를
 // 그대로 읽음 - 도넛 차트/범례/세그먼트 카드 등 "타겟 인사이트" 전체가 이 하나의
 // 기준(css/index.html 상단 :root)만 바라보게 해서 색이 어긋나지 않게 함.
@@ -815,7 +830,7 @@ async function loadData(pw) {
     PRODUCT_SUMMARIES = payload.summaries || {};
     TEMPLATES = payload.templates || [];
     REVIEWS = payload.reviews || [];
-    WORD_FREQUENCY = payload.wordFrequency || [];
+    WORD_FREQUENCY = payload.wordFrequency || {'부모': [], '학생 본인': []};
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
@@ -1588,14 +1603,22 @@ function renderTargetSegment(target, rows, countId, listId, toggleId, fullListId
 function renderTargetInsight() {
   const fProduct = document.getElementById('fTargetProduct').value;
   const rows = REVIEWS.filter(r => fProduct === 'all' || r['제품'] === fProduct);
-  const counts = TARGET_ORDER.map(t => rows.filter(r => (r['추정타겟'] || '그 외') === t).length);
-  const total = counts.reduce((a, b) => a + b, 0);
+  const parentCount = rows.filter(r => (r['추정타겟'] || '그 외') === '부모').length;
+  const studentCount = rows.filter(r => (r['추정타겟'] || '그 외') === '학생 본인').length;
+  const otherCount = rows.filter(r => (r['추정타겟'] || '그 외') === '그 외').length;
+  const totalAll = parentCount + studentCount + otherCount;
+  // 도넛/비율은 "판별 가능했던 리뷰(부모+학생 본인)"만 분모로 씀 - "그 외"(판단 불가)까지
+  // 분모에 넣으면 실제 분류된 두 그룹 사이의 비중 차이가 희석돼서 보임. "그 외"는 차트에
+  // 안 넣고 아래 별도 텍스트로만 안내함.
+  const resolvedOrder = ['부모', '학생 본인'];
+  const resolvedCounts = [parentCount, studentCount];
+  const resolvedTotal = parentCount + studentCount;
 
   const chartData = {
-    labels: TARGET_ORDER,
+    labels: resolvedOrder,
     datasets: [{
-      data: counts,
-      backgroundColor: TARGET_ORDER.map(t => TARGET_COLOR[t]),
+      data: resolvedCounts,
+      backgroundColor: resolvedOrder.map(t => TARGET_COLOR[t]),
       borderColor: getComputedStyle(document.body).getPropertyValue('--surface').trim() || '#fff',
       borderWidth: 2,
     }],
@@ -1613,7 +1636,7 @@ function renderTargetInsight() {
           legend: { display: false },
           tooltip: { callbacks: { label: (item) => {
             const n = item.raw;
-            const pct = total ? (n / total * 100).toFixed(1) : '0.0';
+            const pct = resolvedTotal ? (n / resolvedTotal * 100).toFixed(1) : '0.0';
             return ` ${item.label}: ${n}건 (${pct}%)`;
           } } },
         },
@@ -1621,26 +1644,36 @@ function renderTargetInsight() {
     });
   }
 
-  document.getElementById('targetLegend').innerHTML = TARGET_ORDER.map((t, i) => {
-    const n = counts[i];
-    const pct = total ? (n / total * 100).toFixed(1) : '0.0';
+  document.getElementById('targetLegend').innerHTML = resolvedOrder.map((t, i) => {
+    const n = resolvedCounts[i];
+    const pct = resolvedTotal ? (n / resolvedTotal * 100).toFixed(1) : '0.0';
     return `<span><span class="dot" style="background:${TARGET_COLOR[t]}"></span>${t} ${n}건 (${pct}%)</span>`;
   }).join('');
+
+  const otherPct = totalAll ? (otherCount / totalAll * 100).toFixed(1) : '0.0';
+  document.getElementById('targetOtherNote').innerHTML = otherCount
+    ? `<span class="dot" style="background:${TARGET_COLOR['그 외']}"></span>그 외 ${otherCount}건(전체의 ${otherPct}%)은 판단 불가 - 위 비율에는 안 들어감`
+    : '';
 
   renderTargetSegment('부모', rows, 'targetParentCount', 'targetParentQuotes', 'targetParentToggle', 'targetParentFull');
   renderTargetSegment('학생 본인', rows, 'targetStudentCount', 'targetStudentQuotes', 'targetStudentToggle', 'targetStudentFull');
 }
 
-function renderWordFrequency() {
-  const list = document.getElementById('wordFreqList');
-  if (!WORD_FREQUENCY.length) { list.innerHTML = '<p class="empty-state">아직 계산된 단어 빈도가 없어요.</p>'; return; }
-  const max = Math.max(...WORD_FREQUENCY.map(([, count]) => count));
-  list.innerHTML = WORD_FREQUENCY.map(([word, count]) => `
+function renderWordFreqColumn(listId, words, fillClass) {
+  const list = document.getElementById(listId);
+  if (!words.length) { list.innerHTML = '<p class="empty-state">아직 계산된 단어 빈도가 없어요.</p>'; return; }
+  const max = Math.max(...words.map(([, count]) => count));
+  list.innerHTML = words.map(([word, count]) => `
     <div class="word-bar-row">
       <span class="word-bar-label">${word}</span>
-      <div class="word-bar-track"><div class="word-bar-fill" style="width:${(count/max*100).toFixed(0)}%"></div></div>
+      <div class="word-bar-track"><div class="word-bar-fill ${fillClass}" style="width:${(count/max*100).toFixed(0)}%"></div></div>
       <span class="word-bar-count">${count}</span>
     </div>`).join('');
+}
+
+function renderWordFrequency() {
+  renderWordFreqColumn('wordFreqParentList', WORD_FREQUENCY['부모'] || [], 'word-bar-fill-parent');
+  renderWordFreqColumn('wordFreqStudentList', WORD_FREQUENCY['학생 본인'] || [], 'word-bar-fill-student');
 }
 
 document.addEventListener('change', async (e) => {

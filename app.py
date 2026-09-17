@@ -250,22 +250,29 @@ def fetch_reviews():
 def fetch_word_frequency():
     """"리뷰단어빈도" 탭(review_noun_frequency.py가 로컬 konlpy로 미리 계산해서 채워둠)을
     읽어서 반환. Vercel엔 JVM이 없어서 konlpy를 여기서 직접 못 돌림 - AI 요약과 같은
-    "로컬에서 미리 계산, 여기선 읽기만" 패턴."""
+    "로컬에서 미리 계산, 여기선 읽기만" 패턴.
+
+    2026-09-17부터 "세그먼트"(부모/학생 본인) 컬럼이 추가되어 그룹별로 나눠서 반환함
+    - {"부모": [[단어,빈도],...], "학생 본인": [[단어,빈도],...]} 형태."""
+    empty = {"부모": [], "학생 본인": []}
     gc = get_gspread_client()
     spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
     try:
         tab = spreadsheet.worksheet("리뷰단어빈도")
     except gspread.exceptions.WorksheetNotFound:
-        return []
+        return empty
     values = tab.get_all_values()
     if len(values) < 2:
-        return []
-    result = []
+        return empty
+    result = {"부모": [], "학생 본인": []}
     for row in values[1:]:
-        if len(row) < 2 or not row[0]:
+        if len(row) < 3 or not row[0]:
+            continue
+        segment, word, count = row[0], row[1], row[2]
+        if segment not in result:
             continue
         try:
-            result.append([row[0], int(row[1])])
+            result[segment].append([word, int(count)])
         except ValueError:
             continue
     return result
