@@ -289,6 +289,15 @@
   .best-worst-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
   @media (max-width:700px){.best-worst-columns{grid-template-columns:1fr;}}
 
+  /* ===== 답글 후보 ===== */
+  .reply-subtabs{display:flex;gap:8px;margin:14px 0 16px;flex-wrap:wrap;}
+  .reply-subtab-btn{display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line);
+    border-radius:999px;padding:7px 14px;font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;font-weight:600;
+    color:var(--slate);cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
+  .reply-subtab-btn:hover{color:var(--ink);}
+  .reply-subtab-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .reply-subtab-count{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:10.5px;opacity:0.7;}
+
   .rating-summary{display:flex;gap:32px;align-items:center;}
   .rating-avg{flex:none;text-align:center;min-width:110px;}
   .rating-avg-value{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:40px;
@@ -710,6 +719,20 @@
 
       <div class="panel section">
         <div class="panel-head-row">
+          <h3>답글 후보</h3>
+          <select id="fReplyProduct"><option value="all">전체 제품</option></select>
+        </div>
+        <p class="sub">아직 판매자 답글이 없는 리뷰예요 - 최신순</p>
+        <div class="reply-subtabs">
+          <button class="reply-subtab-btn active" data-reply-tier="low">낮은 평점(1~2점) <span class="reply-subtab-count" id="replyLowCount"></span></button>
+          <button class="reply-subtab-btn" data-reply-tier="high">높은 평점(5점) <span class="reply-subtab-count" id="replyHighCount"></span></button>
+        </div>
+        <div id="replyCandidateList" class="copy-candidate-grid"></div>
+        <p id="replyCandidateEmpty" class="empty-state" style="display:none;">아직 답글 후보가 없어요.</p>
+      </div>
+
+      <div class="panel section">
+        <div class="panel-head-row">
           <h3>타겟 인사이트</h3>
           <select id="fTargetProduct"><option value="all">전체 제품</option></select>
         </div>
@@ -977,6 +1000,7 @@ async function loadData(pw) {
     renderReviews();
     renderCopyCandidates();
     renderBestWorstReviews();
+    renderReplyCandidates();
     renderWordFrequency();
     renderRatingOverview();
     renderTargetInsight();
@@ -1371,6 +1395,9 @@ function initFilters() {
   fill('fBestWorstProduct', unique(REVIEWS, '제품'));
   document.getElementById('fBestWorstProduct').addEventListener('change', renderBestWorstReviews);
 
+  fill('fReplyProduct', unique(REVIEWS, '제품'));
+  document.getElementById('fReplyProduct').addEventListener('change', renderReplyCandidates);
+
   const analysisSel = document.getElementById('fAnalysisWeek');
   analysisSel.innerHTML = '';
   weekKeys.forEach(wk => { const o = document.createElement('option'); o.value = wk; o.textContent = weekOfMonthLabel(wk); analysisSel.appendChild(o); });
@@ -1704,7 +1731,7 @@ function renderReviews() {
       <p class="review-content">${r['리뷰내용']||''}</p>
       ${photos.length ? `<div class="review-photos">${photos.map(u => `<img src="${escapeAttr(u)}" loading="lazy">`).join('')}</div>` : ''}
       <label class="ad-toggle ${adopted ? 'adopted' : ''}">
-        <input type="checkbox" data-review-id="${r['리뷰ID']}" ${adopted ? 'checked' : ''}> 광고소재로 채택
+        <input type="checkbox" data-review-id="${r['리뷰ID']}" data-field="광고소재채택" ${adopted ? 'checked' : ''}> 광고소재로 채택
       </label>
     </div>`;
   }).join('');
@@ -1789,6 +1816,59 @@ function renderBestWorstColumn(items, listId, emptyId) {
       <button class="link-btn tpl-copy" data-answer="${escapeAttr(stripped)}">복사</button>
     </div>`).join('');
 }
+
+// ===== 답글 후보 - sellerReplied: 'Y'→true(답글 있음), 'N'→false(카페24, 확인했는데 없음),
+// ''/미상→null(네이버·쿠팡처럼 API로 알 방법이 없는 채널의 기본값). 세 경우 다 !== true면 후보. =====
+let replyTier = 'low';
+
+function renderReplyCandidates() {
+  const fProduct = document.getElementById('fReplyProduct').value;
+  const rows = REVIEWS.filter(r => fProduct === 'all' || r['제품'] === fProduct);
+
+  const candidates = rows.map(r => {
+    const raw = r['답글완료'];
+    const sellerReplied = raw === 'Y' ? true : raw === 'N' ? false : null;
+    return { r, sellerReplied };
+  }).filter(({ sellerReplied }) => sellerReplied !== true);
+
+  const low = candidates.filter(({ r }) => [1, 2].includes(Number(r['별점'])));
+  const high = candidates.filter(({ r }) => Number(r['별점']) === 5);
+  document.getElementById('replyLowCount').textContent = low.length;
+  document.getElementById('replyHighCount').textContent = high.length;
+
+  const active = (replyTier === 'low' ? low : high)
+    .slice().sort((a, b) => (b.r['날짜']||'').localeCompare(a.r['날짜']||''));
+
+  const list = document.getElementById('replyCandidateList');
+  const emptyEl = document.getElementById('replyCandidateEmpty');
+  if (!active.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  list.innerHTML = active.map(({ r, sellerReplied }) => {
+    const isCafe24 = r['채널'] === '카페24';
+    return `
+    <div class="copy-card">
+      <div class="copy-card-head">
+        <span class="review-stars">${starString(r['별점'])}</span>
+        <span class="chip">${r['제품']||'-'}</span>
+        <span class="chip">${r['날짜']||''}</span>
+        ${isCafe24 && sellerReplied === true ? '<span class="badge" data-status="완료">답글완료</span>' : ''}
+      </div>
+      <p>${stripPlatformTail(r['리뷰내용'])}</p>
+      ${!isCafe24 ? `
+      <label class="ad-toggle ${sellerReplied ? 'adopted' : ''}">
+        <input type="checkbox" data-review-id="${r['리뷰ID']}" data-field="답글완료" ${sellerReplied ? 'checked' : ''}> 답글완료
+      </label>` : ''}
+    </div>`;
+  }).join('');
+}
+
+document.querySelectorAll('.reply-subtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    replyTier = btn.dataset.replyTier;
+    document.querySelectorAll('.reply-subtab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderReplyCandidates();
+  });
+});
 
 function renderTargetSegment(target, rows, countId, listId, toggleId, fullListId) {
   const matched = rows.filter(r => (r['추정타겟'] || '그 외') === target);
@@ -1922,21 +2002,24 @@ document.addEventListener('change', async (e) => {
   const box = e.target.closest('.ad-toggle input[type="checkbox"]');
   if (!box) return;
   const reviewId = box.dataset.reviewId;
-  const adopted = box.checked;
+  const field = box.dataset.field;
+  const value = box.checked;
   const label = box.closest('.ad-toggle');
   box.disabled = true;
   try {
-    const res = await fetch('/api/toggle-review-ad', {
+    const res = await fetch('/api/toggle-review-field', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
-      body: JSON.stringify({ reviewId, adopted }),
+      body: JSON.stringify({ reviewId, field, value }),
     });
     if (!res.ok) throw new Error('저장 실패');
     const r = REVIEWS.find(x => x['리뷰ID'] === reviewId);
-    if (r) r['광고소재채택'] = adopted ? 'Y' : '';
-    label.classList.toggle('adopted', adopted);
+    if (r) r[field] = value ? 'Y' : '';
+    label.classList.toggle('adopted', value);
+    // 답글완료를 체크하면 답글 후보 목록에서 즉시 사라지게 다시 그림.
+    if (field === '답글완료') renderReplyCandidates();
   } catch (err) {
-    box.checked = !adopted;
+    box.checked = !value;
     alert('체크 저장에 실패했어요. 다시 시도해주세요.');
   } finally {
     box.disabled = false;

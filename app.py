@@ -317,17 +317,26 @@ def api_data():
     return resp
 
 
-@app.route("/api/toggle-review-ad", methods=["POST"])
-def api_toggle_review_ad():
+# 리뷰 시트에서 사람이 체크박스로 켜고 끄는 컬럼들 - 화이트리스트로 제한해서
+# 프론트엔드가 임의의 컬럼(예: 리뷰내용)을 덮어쓰지 못하게 함.
+REVIEW_TOGGLE_FIELDS = {"광고소재채택", "답글완료"}
+
+
+@app.route("/api/toggle-review-field", methods=["POST"])
+def api_toggle_review_field():
+    """리뷰 카드의 체크박스(광고소재로 채택 / 답글완료) 저장 - 예전엔 광고소재채택
+    전용 엔드포인트(/api/toggle-review-ad)였는데, 답글완료 체크박스도 똑같은 저장
+    경로가 필요해져서 field 파라미터로 일반화함."""
     pw = request.headers.get("X-Dashboard-Password", "")
     if pw != os.environ.get("DASHBOARD_PASSWORD"):
         return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
 
     body = request.get_json(silent=True) or {}
     review_id = body.get("reviewId", "")
-    adopted = bool(body.get("adopted"))
-    if not review_id:
-        return Response(json.dumps({"error": "reviewId가 필요해요."}), status=400, mimetype="application/json")
+    field = body.get("field", "")
+    value = bool(body.get("value"))
+    if not review_id or field not in REVIEW_TOGGLE_FIELDS:
+        return Response(json.dumps({"error": "reviewId와 유효한 field가 필요해요."}), status=400, mimetype="application/json")
 
     try:
         gc = get_gspread_client()
@@ -336,11 +345,11 @@ def api_toggle_review_ad():
         values = tab.get_all_values()
         headers = values[0]
         id_idx = headers.index("리뷰ID")
-        ad_idx = headers.index("광고소재채택")
+        field_idx = headers.index(field)
         row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[id_idx] == review_id), None)
         if row_num is None:
             return Response(json.dumps({"error": "해당 리뷰를 찾을 수 없어요."}), status=404, mimetype="application/json")
-        tab.update_cell(row_num, ad_idx + 1, "Y" if adopted else "")
+        tab.update_cell(row_num, field_idx + 1, "Y" if value else "")
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
