@@ -286,6 +286,16 @@
 
   .word-freq-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
   @media (max-width:700px){.word-freq-columns{grid-template-columns:1fr;}}
+
+  .rating-summary{display:flex;gap:32px;align-items:center;}
+  .rating-avg{flex:none;text-align:center;min-width:110px;}
+  .rating-avg-value{font-family:'Space Grotesk','Pretendard',sans-serif;font-size:40px;
+    font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+  .rating-avg .review-stars{display:block;margin:6px 0;}
+  .rating-avg .sub{margin:0;}
+  .rating-bars{flex:1;min-width:0;}
+  @media (max-width:600px){.rating-summary{flex-direction:column;align-items:stretch;}
+    .rating-avg{min-width:0;}}
   .word-bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px;}
   .word-bar-label{width:64px;flex:none;color:var(--ink);font-weight:500;}
   .word-bar-track{flex:1;background:var(--paper);border-radius:6px;height:16px;overflow:hidden;}
@@ -661,6 +671,21 @@
 
     <!-- ===== 탭: 리뷰 ===== -->
     <div class="tab-panel" id="tab-review">
+      <div class="panel section" id="ratingOverviewPanel">
+        <div class="panel-head-row">
+          <h3>별점 개요</h3>
+          <select id="fRatingProduct"><option value="all">전체 제품</option></select>
+        </div>
+        <div class="rating-summary">
+          <div class="rating-avg">
+            <div class="rating-avg-value" id="ratingAvgValue">0.0</div>
+            <div class="review-stars" id="ratingAvgStars"></div>
+            <div class="sub">총 <span id="ratingTotalCount">0</span>건</div>
+          </div>
+          <div class="rating-bars" id="ratingBars"></div>
+        </div>
+      </div>
+
       <div class="panel section">
         <div class="panel-head-row">
           <h3>타겟 인사이트</h3>
@@ -930,6 +955,7 @@ async function loadData(pw) {
     renderReviews();
     renderCopyCandidates();
     renderWordFrequency();
+    renderRatingOverview();
     renderTargetInsight();
     return 'ok';
   } catch (e) {
@@ -1312,6 +1338,9 @@ function initFilters() {
 
   fill('fReviewProduct', unique(REVIEWS, '제품'));
   ['fReviewProduct','fReviewRating','fReviewPeriod','fReviewAd','fReviewNarrative'].forEach(id => document.getElementById(id).addEventListener('change', renderReviews));
+
+  fill('fRatingProduct', unique(REVIEWS, '제품'));
+  document.getElementById('fRatingProduct').addEventListener('change', renderRatingOverview);
 
   fill('fTargetProduct', unique(REVIEWS, '제품'));
   document.getElementById('fTargetProduct').addEventListener('change', renderTargetInsight);
@@ -1709,6 +1738,27 @@ function renderTargetSegment(target, rows, countId, listId, toggleId, fullListId
     <div class="target-quote">
       <span class="chip">${r['날짜']||''} · ${r['제품']||'-'} · ${starString(r['별점'])}</span>
       ${collapsibleCell(r['리뷰내용'], 'cc-text-4')}
+    </div>`).join('');
+}
+
+function renderRatingOverview() {
+  const fProduct = document.getElementById('fRatingProduct').value;
+  const rows = REVIEWS.filter(r => fProduct === 'all' || r['제품'] === fProduct);
+  const ratings = rows.map(r => Number(r['별점']) || 0).filter(n => n > 0);
+  const total = ratings.length;
+  const avg = total ? ratings.reduce((a, b) => a + b, 0) / total : 0;
+
+  document.getElementById('ratingAvgValue').textContent = avg.toFixed(1);
+  document.getElementById('ratingAvgStars').textContent = starString(avg);
+  document.getElementById('ratingTotalCount').textContent = total;
+
+  const counts = [5, 4, 3, 2, 1].map(star => ratings.filter(n => n === star).length);
+  const max = Math.max(1, ...counts);
+  document.getElementById('ratingBars').innerHTML = [5, 4, 3, 2, 1].map((star, i) => `
+    <div class="word-bar-row">
+      <span class="word-bar-label">${star}점</span>
+      <div class="word-bar-track"><div class="word-bar-fill" style="width:${(counts[i]/max*100).toFixed(0)}%"></div></div>
+      <span class="word-bar-count">${counts[i]}</span>
     </div>`).join('');
 }
 
