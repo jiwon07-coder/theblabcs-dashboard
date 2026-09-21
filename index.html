@@ -286,6 +286,8 @@
 
   .word-freq-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
   @media (max-width:700px){.word-freq-columns{grid-template-columns:1fr;}}
+  .best-worst-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  @media (max-width:700px){.best-worst-columns{grid-template-columns:1fr;}}
 
   .rating-summary{display:flex;gap:32px;align-items:center;}
   .rating-avg{flex:none;text-align:center;min-width:110px;}
@@ -745,6 +747,26 @@
         <p id="copyCandidateEmpty" class="empty-state" style="display:none;">아직 분류된 카피 후보가 없어요.</p>
       </div>
 
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>베스트 · 워스트 리뷰</h3>
+          <select id="fBestWorstProduct"><option value="all">전체 제품</option></select>
+        </div>
+        <p class="sub">카피 후보와 겹치지 않는, 내용이 구체적인 리뷰 위주예요 - 베스트는 5점(사진 있으면 가중치), 워스트는 1~2점 중 단답이 아닌 것만</p>
+        <div class="best-worst-columns">
+          <div>
+            <h4 class="chart-subtitle">베스트 리뷰</h4>
+            <div id="bestReviewList" class="copy-candidate-grid"></div>
+            <p id="bestReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 베스트 리뷰가 없어요.</p>
+          </div>
+          <div>
+            <h4 class="chart-subtitle">워스트 리뷰</h4>
+            <div id="worstReviewList" class="copy-candidate-grid"></div>
+            <p id="worstReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 워스트 리뷰가 없어요.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="panel section" id="reviewPanel">
         <div class="panel-head-row">
           <h3>전체 리뷰 목록</h3>
@@ -954,6 +976,7 @@ async function loadData(pw) {
     render();
     renderReviews();
     renderCopyCandidates();
+    renderBestWorstReviews();
     renderWordFrequency();
     renderRatingOverview();
     renderTargetInsight();
@@ -1345,6 +1368,9 @@ function initFilters() {
   fill('fTargetProduct', unique(REVIEWS, '제품'));
   document.getElementById('fTargetProduct').addEventListener('change', renderTargetInsight);
 
+  fill('fBestWorstProduct', unique(REVIEWS, '제품'));
+  document.getElementById('fBestWorstProduct').addEventListener('change', renderBestWorstReviews);
+
   const analysisSel = document.getElementById('fAnalysisWeek');
   analysisSel.innerHTML = '';
   weekKeys.forEach(wk => { const o = document.createElement('option'); o.value = wk; o.textContent = weekOfMonthLabel(wk); analysisSel.appendChild(o); });
@@ -1708,6 +1734,60 @@ function renderCopyCandidates() {
       </div>
     </div>`;
   }).join('');
+}
+
+// 카페24가 리뷰 끝에 자동으로 붙이는 "YYYY-MM-DD ... 에(서) 등록된/작성된 {채널} 구매평" 꼬리 -
+// review_keywords.py의 strip_platform_tail()과 같은 정규식(파이썬 쪽엔 이미 있는데 프론트엔드엔
+// 없었음). 안 지우면 이 꼬리 길이(~30자) 때문에 실제로는 짧은 리뷰가 "글자수 충분"으로
+// 잘못 걸릴 수 있어서, 베스트/워스트 리뷰를 글자수로 거를 때는 지우고 계산함.
+function stripPlatformTail(text) {
+  return (text || '').replace(/\(?\d{4}-\d{2}-\d{2}[^\n]{0,30}?에서?\s?(등록|작성)된[^\n]*/, '').trim();
+}
+
+const BEST_WORST_MIN_LEN = 30;
+const BEST_WORST_PHOTO_BONUS = 50;
+
+function renderBestWorstReviews() {
+  const fProduct = document.getElementById('fBestWorstProduct').value;
+  // 카피 후보(서사유형 있는 리뷰)와 안 겹치게 제외.
+  const pool = REVIEWS.filter(r => (fProduct === 'all' || r['제품'] === fProduct) && (r['서사유형']||[]).length === 0);
+
+  const withStripped = pool.map(r => ({ r, stripped: stripPlatformTail(r['리뷰내용']) }));
+
+  const best = withStripped
+    .filter(({ r, stripped }) => Number(r['별점']) === 5 && stripped.length >= BEST_WORST_MIN_LEN)
+    .map(({ r, stripped }) => {
+      const hasPhoto = !!(r['사진URL'] || '').split(',').map(s => s.trim()).filter(Boolean).length;
+      return { r, stripped, hasPhoto, score: stripped.length + (hasPhoto ? BEST_WORST_PHOTO_BONUS : 0) };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  const worst = withStripped
+    .filter(({ r, stripped }) => [1, 2].includes(Number(r['별점'])) && stripped.length >= BEST_WORST_MIN_LEN)
+    .map(({ r, stripped }) => ({ r, stripped, hasPhoto: false, score: stripped.length }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  renderBestWorstColumn(best, 'bestReviewList', 'bestReviewEmpty');
+  renderBestWorstColumn(worst, 'worstReviewList', 'worstReviewEmpty');
+}
+
+function renderBestWorstColumn(items, listId, emptyId) {
+  const list = document.getElementById(listId);
+  const emptyEl = document.getElementById(emptyId);
+  if (!items.length) { list.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  list.innerHTML = items.map(({ r, stripped, hasPhoto }) => `
+    <div class="copy-card">
+      <div class="copy-card-head">
+        <span class="review-stars">${starString(r['별점'])}</span>
+        <span class="chip">${r['제품']||'-'}</span>
+        ${hasPhoto ? '<span class="chip">📷 사진</span>' : ''}
+      </div>
+      <p>${stripped}</p>
+      <button class="link-btn tpl-copy" data-answer="${escapeAttr(stripped)}">복사</button>
+    </div>`).join('');
 }
 
 function renderTargetSegment(target, rows, countId, listId, toggleId, fullListId) {
