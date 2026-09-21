@@ -1809,6 +1809,7 @@ function renderBestWorstColumn(items, listId, emptyId) {
     <div class="copy-card">
       <div class="copy-card-head">
         <span class="review-stars">${starString(r['별점'])}</span>
+        <span class="chip">${r['날짜']||''}</span>
         <span class="chip">${r['제품']||'-'}</span>
         ${hasPhoto ? '<span class="chip">📷 사진</span>' : ''}
       </div>
