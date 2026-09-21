@@ -690,6 +690,26 @@
 
       <div class="panel section">
         <div class="panel-head-row">
+          <h3>베스트 · 워스트 리뷰</h3>
+          <select id="fBestWorstProduct"><option value="all">전체 제품</option></select>
+        </div>
+        <p class="sub">카피 후보와 겹치지 않는, 내용이 구체적인 리뷰 위주예요 - 베스트는 5점(사진 있으면 가중치), 워스트는 1~2점 중 단답이 아닌 것만</p>
+        <div class="best-worst-columns">
+          <div>
+            <h4 class="chart-subtitle">베스트 리뷰</h4>
+            <div id="bestReviewList" class="copy-candidate-grid"></div>
+            <p id="bestReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 베스트 리뷰가 없어요.</p>
+          </div>
+          <div>
+            <h4 class="chart-subtitle">워스트 리뷰</h4>
+            <div id="worstReviewList" class="copy-candidate-grid"></div>
+            <p id="worstReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 워스트 리뷰가 없어요.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel section">
+        <div class="panel-head-row">
           <h3>타겟 인사이트</h3>
           <select id="fTargetProduct"><option value="all">전체 제품</option></select>
         </div>
@@ -745,26 +765,6 @@
         <p class="sub">망설임형·비교구매형으로 분류된 리뷰 - 카드 안 버튼으로 "카피 문구"와 "의심 포인트" 관점을 전환해서 볼 수 있어요</p>
         <div id="copyCandidateList" class="copy-candidate-grid"></div>
         <p id="copyCandidateEmpty" class="empty-state" style="display:none;">아직 분류된 카피 후보가 없어요.</p>
-      </div>
-
-      <div class="panel section">
-        <div class="panel-head-row">
-          <h3>베스트 · 워스트 리뷰</h3>
-          <select id="fBestWorstProduct"><option value="all">전체 제품</option></select>
-        </div>
-        <p class="sub">카피 후보와 겹치지 않는, 내용이 구체적인 리뷰 위주예요 - 베스트는 5점(사진 있으면 가중치), 워스트는 1~2점 중 단답이 아닌 것만</p>
-        <div class="best-worst-columns">
-          <div>
-            <h4 class="chart-subtitle">베스트 리뷰</h4>
-            <div id="bestReviewList" class="copy-candidate-grid"></div>
-            <p id="bestReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 베스트 리뷰가 없어요.</p>
-          </div>
-          <div>
-            <h4 class="chart-subtitle">워스트 리뷰</h4>
-            <div id="worstReviewList" class="copy-candidate-grid"></div>
-            <p id="worstReviewEmpty" class="empty-state" style="display:none;">아직 조건에 맞는 워스트 리뷰가 없어요.</p>
-          </div>
-        </div>
       </div>
 
       <div class="panel section" id="reviewPanel">
