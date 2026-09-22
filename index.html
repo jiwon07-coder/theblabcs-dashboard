@@ -251,9 +251,9 @@
   .chat-edit-form select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:7px 10px;
     border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
   .chat-edit-actions{display:flex;gap:8px;}
-  .today-minor-select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:5px 8px;
+  .inquiry-minor-select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:5px 8px;
     border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:140px;}
-  .today-minor-error{margin:4px 0 0;}
+  .inquiry-minor-error{margin:4px 0 0;}
 
   /* ===== 리뷰 탭 ===== */
   .review-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
@@ -903,8 +903,8 @@ document.addEventListener('click', (e) => {
   if (btn) btn.closest('.cc-wrap').classList.toggle('expanded');
 });
 document.addEventListener('change', (e) => {
-  const select = e.target.closest('.today-minor-select');
-  if (select) saveTodayMinor(select);
+  const select = e.target.closest('.inquiry-minor-select');
+  if (select) saveInquiryMinor(select);
 });
 
 // ===== 답변 템플릿 매칭 (소분류 기준, "CS 템플릿" 시트에서 가져옴) =====
@@ -1217,10 +1217,7 @@ function renderToday() {
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
-      <td>
-        <select class="today-minor-select" data-inquiry-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">${minorOptionsHtml(r['소분류'])}</select>
-        <p class="modal-error today-minor-error" style="display:none;"></p>
-      </td>
+      <td class="chip">${r['소분류']||''}</td>
       <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
       <td><button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button></td>
@@ -1390,8 +1387,8 @@ async function saveChatEdit(btn) {
   }
 }
 
-async function saveTodayMinor(select) {
-  const errorEl = select.closest('td').querySelector('.today-minor-error');
+async function saveInquiryMinor(select) {
+  const errorEl = select.closest('td').querySelector('.inquiry-minor-error');
   errorEl.style.display = 'none';
   const body = {
     '문의ID': select.dataset.inquiryId,
@@ -1401,7 +1398,7 @@ async function saveTodayMinor(select) {
   select.disabled = true;
   try {
     await updateInquiry(body);
-    renderToday();
+    renderTable();
   } catch (e) {
     errorEl.textContent = e.message;
     errorEl.style.display = 'block';
@@ -1597,7 +1594,10 @@ function renderTable() {
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
-      <td class="chip">${r['소분류']||''}</td>
+      <td>
+        <select class="inquiry-minor-select" data-inquiry-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">${minorOptionsHtml(r['소분류'])}</select>
+        <p class="modal-error inquiry-minor-error" style="display:none;"></p>
+      </td>
       <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
       <td class="content-cell">${collapsibleCell(r['답변내용'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
