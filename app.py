@@ -24,6 +24,7 @@ from google.oauth2.service_account import Credentials
 import template_tags
 import kakao_export
 import naver_export
+import naver_reply
 import review_keywords
 
 app = Flask(__name__)
@@ -482,6 +483,49 @@ def api_update_chat():
                 tab.update_cell(row_num, headers.index(field) + 1, value)
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps({"ok": True}), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/send-naver-answer", methods=["POST"])
+def api_send_naver_answer():
+    """"오늘 처리" 탭의 네이버 문의 카드에서 "네이버에 답변 전송"을 눌렀을 때만 호출됨 -
+    사람이 초안을 확인/수정한 뒤 명시적으로 누른 경우에만 실행되는, 실제로 네이버에
+    답변을 등록하는(되돌릴 수 없는) 동작. 자동으로/주기적으로 호출되는 곳은 없음."""
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
+
+    body = request.get_json(silent=True) or {}
+    inquiry_id = body.get("inquiryId", "")
+    answer = (body.get("answer") or "").strip()
+    if not inquiry_id or not answer:
+        return Response(json.dumps({"error": "inquiryId와 answer가 필요해요."}), status=400, mimetype="application/json")
+
+    try:
+        naver_reply.send_answer(inquiry_id, answer)
+    except Exception as e:
+        return Response(json.dumps({"error": f"네이버 답변 등록에 실패했어요: {e}"}), status=500, mimetype="application/json")
+
+    # 실제 답변은 이미 등록됐으니, 시트 반영이 실패해도 에러로 취급하지 않음(다음 자동
+    # 동기화 때 naver_sync_full.py가 어차피 맞춰줌 - 여긴 화면에 바로 반영되게 하는 보너스).
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+        tab = spreadsheet.worksheet("네이버_CS")
+        values = tab.get_all_values()
+        headers = values[0]
+        id_idx = headers.index("문의ID")
+        answer_idx = headers.index("답변내용")
+        status_idx = headers.index("처리상태")
+        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[id_idx] == inquiry_id), None)
+        if row_num is not None:
+            tab.update_cell(row_num, answer_idx + 1, answer)
+            tab.update_cell(row_num, status_idx + 1, "완료")
+    except Exception:
+        pass
 
     resp = Response(json.dumps({"ok": True}), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"

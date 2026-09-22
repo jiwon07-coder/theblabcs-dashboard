@@ -167,6 +167,13 @@
     border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
   .modal-body textarea{resize:vertical;font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;}
   .modal-error{color:var(--coral);font-size:12px;margin:10px 0 0;white-space:pre-wrap;}
+
+  /* ===== 네이버 답변 초안 + 전송 ===== */
+  .naver-reply-box{padding:10px 2px 4px;}
+  .naver-reply-box textarea{width:100%;box-sizing:border-box;font-family:'Inter','Pretendard',sans-serif;
+    font-size:13px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink);resize:vertical;margin-bottom:8px;}
+  .naver-reply-error{color:var(--coral);font-size:12px;margin:6px 0 0;}
   .chip{font-size:11px;color:var(--slate);font-family:'IBM Plex Mono','Pretendard',monospace;}
   .content-cell{max-width:320px;color:var(--slate);font-size:12px;white-space:normal;word-break:break-word;}
   .cc-wrap{display:flex;align-items:flex-start;gap:4px;}
@@ -896,6 +903,9 @@ document.addEventListener('click', (e) => {
 function templatesFor(minor) { return TEMPLATES.filter(t => t['소분류'] === minor); }
 function commonTemplates() { return TEMPLATES.filter(t => t['소분류'] === '공통'); }
 function escapeAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+// textarea 안에 값 채울 때는 "<"도 이스케이프해야 함 (안 그러면 내용에 "</textarea"가
+// 우연히 들어있을 때 태그가 깨짐) - escapeAttr은 속성값용이라 따로 둠.
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function renderTemplateList(list, emptyMsg) {
   if (!list.length) return `<p class="empty-state" style="padding:6px 0;">${emptyMsg || '이 소분류에 매칭되는 템플릿이 아직 없어요.'}</p>`;
   return list.map(t => `
@@ -1191,6 +1201,8 @@ function renderToday() {
   tbody.innerHTML = sorted.map((r, i) => {
     const matched = templatesFor(r['소분류']);
     const tplId = 'tpl-row-' + i;
+    const isNaver = r['채널'] === '네이버 스마트스토어';
+    const draftText = matched.length ? (matched[0]['답변'] || '') : '';
     return `
     <tr>
       <td class="chip">${r['날짜']||''}</td>
@@ -1202,7 +1214,17 @@ function renderToday() {
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
       <td><button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button></td>
     </tr>
-    <tr class="tpl-row" id="${tplId}" style="display:none;"><td colspan="8">${renderTemplateList(matched)}</td></tr>`;
+    <tr class="tpl-row" id="${tplId}" style="display:none;"><td colspan="8">${renderTemplateList(matched)}</td></tr>
+    ${isNaver ? `
+    <tr class="naver-reply-row">
+      <td colspan="8">
+        <div class="naver-reply-box">
+          <textarea class="naver-reply-input" rows="4" placeholder="답변 초안 (수정 가능)">${escapeHtml(draftText)}</textarea>
+          <button class="mark-seen-btn naver-send-btn" data-inquiry-id="${r['문의ID']}">네이버에 답변 전송</button>
+          <p class="naver-reply-error" style="display:none;"></p>
+        </div>
+      </td>
+    </tr>` : ''}`;
   }).join('');
 }
 
@@ -2024,6 +2046,44 @@ document.addEventListener('change', async (e) => {
     alert('체크 저장에 실패했어요. 다시 시도해주세요.');
   } finally {
     box.disabled = false;
+  }
+});
+
+// ===== 네이버 문의 답변 전송 - 실제로 네이버에 답변이 올라가는 되돌릴 수 없는 동작이라
+// 매번 confirm()으로 한 번 더 확인받음(체크박스 몇 개와는 성격이 다름). =====
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.naver-send-btn');
+  if (!btn) return;
+  const box = btn.closest('.naver-reply-box');
+  const textarea = box.querySelector('.naver-reply-input');
+  const errorEl = box.querySelector('.naver-reply-error');
+  const inquiryId = btn.dataset.inquiryId;
+  const answer = textarea.value.trim();
+  errorEl.style.display = 'none';
+  if (!answer) {
+    errorEl.textContent = '답변 내용을 입력해주세요.';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (!confirm('이 답변을 네이버에 실제로 전송할까요? 전송 후에는 여기서 취소할 수 없어요.')) return;
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = '전송 중...';
+  try {
+    const res = await fetch('/api/send-naver-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: JSON.stringify({ inquiryId, answer }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '전송에 실패했어요.');
+    await loadData(sessionStorage.getItem('cs_dashboard_pw'));
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 });
 
