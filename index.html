@@ -478,6 +478,7 @@
           <h3>주간 문의 분석</h3>
           <select id="fAnalysisWeek"></select>
         </div>
+        <p class="sub">이 주에 총 <strong id="analysisWeekTotal">0</strong>건의 문의가 들어왔어요</p>
         <div class="charts-row">
           <div>
             <h4 class="chart-subtitle">문제유형 분포</h4>
@@ -1177,6 +1178,7 @@ function renderProductChart(rows) {
 function renderAnalysis() {
   const wk = document.getElementById('fAnalysisWeek').value;
   const rows = allData.filter(r => getMonday(r['날짜']) === wk);
+  document.getElementById('analysisWeekTotal').textContent = rows.length;
   renderTypeChart(rows);
   renderProductChart(rows);
 }
