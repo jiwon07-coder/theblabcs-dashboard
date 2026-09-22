@@ -454,6 +454,7 @@ def api_log_chat():
 # MINOR_TO_MAJOR와 같은 taxonomy - "기타"는 규칙표에 없는 catch-all이라 따로 추가).
 MINOR_TO_MAJOR = {minor: major for major, minor, _ in CLASSIFY_RULES}
 MINOR_TO_MAJOR["기타"] = "기타 문의"
+MINOR_TO_MAJOR["사용 방법"] = "사용 방법"
 
 EDITABLE_INQUIRY_FIELDS = {"제품", "소분류", "처리상태"}
 
