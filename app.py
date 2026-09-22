@@ -24,6 +24,7 @@ from google.oauth2.service_account import Credentials
 import template_tags
 import kakao_export
 import naver_export
+import naver_reply
 import review_keywords
 
 app = Flask(__name__)
@@ -228,6 +229,7 @@ def fetch_reviews():
         return []
     headers = values[0]
     records = [dict(zip(headers, row)) for row in values[1:] if row]
+    records = [r for r in records if r.get("제품") in review_keywords.REVIEW_PRODUCTS]
     for r in records:
         try:
             rating = float(r.get("별점") or 0)
@@ -249,22 +251,29 @@ def fetch_reviews():
 def fetch_word_frequency():
     """"리뷰단어빈도" 탭(review_noun_frequency.py가 로컬 konlpy로 미리 계산해서 채워둠)을
     읽어서 반환. Vercel엔 JVM이 없어서 konlpy를 여기서 직접 못 돌림 - AI 요약과 같은
-    "로컬에서 미리 계산, 여기선 읽기만" 패턴."""
+    "로컬에서 미리 계산, 여기선 읽기만" 패턴.
+
+    2026-09-17부터 "세그먼트"(부모/학생 본인) 컬럼이 추가되어 그룹별로 나눠서 반환함
+    - {"부모": [[단어,빈도],...], "학생 본인": [[단어,빈도],...]} 형태."""
+    empty = {"부모": [], "학생 본인": []}
     gc = get_gspread_client()
     spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
     try:
         tab = spreadsheet.worksheet("리뷰단어빈도")
     except gspread.exceptions.WorksheetNotFound:
-        return []
+        return empty
     values = tab.get_all_values()
     if len(values) < 2:
-        return []
-    result = []
+        return empty
+    result = {"부모": [], "학생 본인": []}
     for row in values[1:]:
-        if len(row) < 2 or not row[0]:
+        if len(row) < 3 or not row[0]:
+            continue
+        segment, word, count = row[0], row[1], row[2]
+        if segment not in result:
             continue
         try:
-            result.append([row[0], int(row[1])])
+            result[segment].append([word, int(count)])
         except ValueError:
             continue
     return result
@@ -309,17 +318,26 @@ def api_data():
     return resp
 
 
-@app.route("/api/toggle-review-ad", methods=["POST"])
-def api_toggle_review_ad():
+# 리뷰 시트에서 사람이 체크박스로 켜고 끄는 컬럼들 - 화이트리스트로 제한해서
+# 프론트엔드가 임의의 컬럼(예: 리뷰내용)을 덮어쓰지 못하게 함.
+REVIEW_TOGGLE_FIELDS = {"광고소재채택", "답글완료"}
+
+
+@app.route("/api/toggle-review-field", methods=["POST"])
+def api_toggle_review_field():
+    """리뷰 카드의 체크박스(광고소재로 채택 / 답글완료) 저장 - 예전엔 광고소재채택
+    전용 엔드포인트(/api/toggle-review-ad)였는데, 답글완료 체크박스도 똑같은 저장
+    경로가 필요해져서 field 파라미터로 일반화함."""
     pw = request.headers.get("X-Dashboard-Password", "")
     if pw != os.environ.get("DASHBOARD_PASSWORD"):
         return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
 
     body = request.get_json(silent=True) or {}
     review_id = body.get("reviewId", "")
-    adopted = bool(body.get("adopted"))
-    if not review_id:
-        return Response(json.dumps({"error": "reviewId가 필요해요."}), status=400, mimetype="application/json")
+    field = body.get("field", "")
+    value = bool(body.get("value"))
+    if not review_id or field not in REVIEW_TOGGLE_FIELDS:
+        return Response(json.dumps({"error": "reviewId와 유효한 field가 필요해요."}), status=400, mimetype="application/json")
 
     try:
         gc = get_gspread_client()
@@ -328,11 +346,11 @@ def api_toggle_review_ad():
         values = tab.get_all_values()
         headers = values[0]
         id_idx = headers.index("리뷰ID")
-        ad_idx = headers.index("광고소재채택")
+        field_idx = headers.index(field)
         row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[id_idx] == review_id), None)
         if row_num is None:
             return Response(json.dumps({"error": "해당 리뷰를 찾을 수 없어요."}), status=404, mimetype="application/json")
-        tab.update_cell(row_num, ad_idx + 1, "Y" if adopted else "")
+        tab.update_cell(row_num, field_idx + 1, "Y" if value else "")
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
@@ -465,6 +483,49 @@ def api_update_chat():
                 tab.update_cell(row_num, headers.index(field) + 1, value)
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    resp = Response(json.dumps({"ok": True}), mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/send-naver-answer", methods=["POST"])
+def api_send_naver_answer():
+    """"오늘 처리" 탭의 네이버 문의 카드에서 "네이버에 답변 전송"을 눌렀을 때만 호출됨 -
+    사람이 초안을 확인/수정한 뒤 명시적으로 누른 경우에만 실행되는, 실제로 네이버에
+    답변을 등록하는(되돌릴 수 없는) 동작. 자동으로/주기적으로 호출되는 곳은 없음."""
+    pw = request.headers.get("X-Dashboard-Password", "")
+    if pw != os.environ.get("DASHBOARD_PASSWORD"):
+        return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
+
+    body = request.get_json(silent=True) or {}
+    inquiry_id = body.get("inquiryId", "")
+    answer = (body.get("answer") or "").strip()
+    if not inquiry_id or not answer:
+        return Response(json.dumps({"error": "inquiryId와 answer가 필요해요."}), status=400, mimetype="application/json")
+
+    try:
+        naver_reply.send_answer(inquiry_id, answer)
+    except Exception as e:
+        return Response(json.dumps({"error": f"네이버 답변 등록에 실패했어요: {e}"}), status=500, mimetype="application/json")
+
+    # 실제 답변은 이미 등록됐으니, 시트 반영이 실패해도 에러로 취급하지 않음(다음 자동
+    # 동기화 때 naver_sync_full.py가 어차피 맞춰줌 - 여긴 화면에 바로 반영되게 하는 보너스).
+    try:
+        gc = get_gspread_client()
+        spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
+        tab = spreadsheet.worksheet("네이버_CS")
+        values = tab.get_all_values()
+        headers = values[0]
+        id_idx = headers.index("문의ID")
+        answer_idx = headers.index("답변내용")
+        status_idx = headers.index("처리상태")
+        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[id_idx] == inquiry_id), None)
+        if row_num is not None:
+            tab.update_cell(row_num, answer_idx + 1, answer)
+            tab.update_cell(row_num, status_idx + 1, "완료")
+    except Exception:
+        pass
 
     resp = Response(json.dumps({"ok": True}), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"

@@ -9,6 +9,11 @@ export_dashboard.py의 classify_inquiry와 같은 방식 - 새 표현을 발견�
 """
 import re
 
+# 리뷰 탭은 현재 판매 중인 이 두 제품만 참고하면 된다고 확정함(2026-09-09) - 오리지널/미니/
+# 오리지널 케이블/미분류 리뷰는 시트엔 그대로 있지만 대시보드·단어빈도 분석엔 안 씀.
+# app.py의 fetch_reviews()와 review_noun_frequency.py의 get_reviews() 둘 다 이걸로 필터링함.
+REVIEW_PRODUCTS = ["오리지널 V2", "프로"]
+
 # 카페24가 리뷰 끝에 자동으로 붙이는 "YYYY-MM-DD ... 에(서) 등록된/작성된 {채널} 구매평" 꼬리.
 # 괄호 유무/"등록된"·"작성된"/"에"·"에서" 조합으로 실제 4가지 변형이 확인됨(2026-09-07,
 # review_noun_frequency.py 작업 중 발견) - 안 지우면 "스마트스토어"가 "스마트"/"스토어"로
@@ -83,6 +88,41 @@ def find_hesitation_reviews(reviews, min_rating=4):
 
 def find_comparison_reviews(reviews, min_rating=4):
     return _filter_by_rating(reviews, min_rating, has_comparison)
+
+
+PARENT_PATTERNS = [
+    # "아이"/"딸"은 단어 자체가 흔해서 무관한 단어의 일부로 걸리는 오탐이 있어 제외 처리함
+    # (실제 리뷰로 검증: "아이폰"/"아이디어"/"아이템", "딸기"/"딸깍" - 2026-09-09).
+    r"아이(?!폰|디어|템)",
+    r"딸(?!기|깍)",
+    r"아들", r"자녀", r"애들", r"얘들", r"우리\s?애", r"저희\s?아이", r"학부모",
+    r"중학생.{0,10}(아들|딸)", r"고등학생.{0,10}(아들|딸)", r"제\s?아이",
+]
+
+STUDENT_PATTERNS = [
+    # "공부"/"시험"류 표현은 부모가 자녀 얘기하면서도 흔히 씀(예: "아이가 공부할 때",
+    # "아이 시험기간이라") - classify_reviewer가 **부모 신호를 먼저 확인하고 우선시**하도록
+    # 바뀌어서(2026-09-10), 이제 이 표현들이 부모 리뷰와 겹쳐도 안전하게 넓게 잡을 수 있음
+    # (부모 패턴에 안 걸린 나머지 리뷰 중에서만 아래 표현으로 학생 본인을 판단하게 됨).
+    r"공부", r"시험", r"제\s?방에서",
+    r"자취", r"기숙사", r"인강\s?볼\s?때",
+]
+
+
+def classify_reviewer(text):
+    """리뷰 작성자가 "부모"(자녀 얘기를 하며 씀)인지 "학생 본인"(1인칭으로 본인 얘기)인지
+    키워드로 추정. **부모 신호를 먼저 확인**하고(자녀 얘기를 하면서 "공부"/"시험" 같은
+    표현도 같이 쓰는 경우가 많아서, 부모 쪽이 더 확실한 신호로 보고 우선시함), 부모
+    패턴에 안 걸린 리뷰에 한해서만 학생 본인 패턴을 확인함. 둘 다 안 걸리면 "그 외".
+    새 표현을 발견하면 PARENT_PATTERNS/STUDENT_PATTERNS에 추가하면 됨(export_dashboard.py의
+    classify_inquiry와 같은 방식)."""
+    if not text:
+        return "그 외"
+    if _matches_any(text, PARENT_PATTERNS):
+        return "부모"
+    if _matches_any(text, STUDENT_PATTERNS):
+        return "학생 본인"
+    return "그 외"
 
 
 def extract_hesitation_snippet(text, context=40):
