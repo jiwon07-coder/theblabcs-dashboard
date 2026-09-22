@@ -32,6 +32,12 @@ app = Flask(__name__)
 CS_TABS = ["카페24_CS", "네이버_CS", "채팅상담_CS"]
 CHAT_SHEET_HEADERS = ["문의ID", "날짜", "채널", "제품", "문제유형", "고객문의", "답변내용", "처리상태", "소분류", "AI요약"]
 CHAT_CHANNEL_PREFIX = {"카카오톡": "KKO", "네이버 톡톡": "NVT"}
+CHANNEL_TO_TAB = {
+    "자사몰 게시판": "카페24_CS",
+    "네이버 스마트스토어": "네이버_CS",
+    "카카오톡": "채팅상담_CS",
+    "네이버 톡톡": "채팅상담_CS",
+}
 KST = timezone(timedelta(hours=9))
 RECENT_DAYS = 92  # 대시보드에는 최근 3개월치만 보여줌 (그 이전 데이터는 시트엔 그대로 남아있음)
 
@@ -449,21 +455,25 @@ def api_log_chat():
 MINOR_TO_MAJOR = {minor: major for major, minor, _ in CLASSIFY_RULES}
 MINOR_TO_MAJOR["기타"] = "기타 문의"
 
-EDITABLE_CHAT_FIELDS = {"제품", "소분류", "처리상태"}
+EDITABLE_INQUIRY_FIELDS = {"제품", "소분류", "처리상태"}
 
 
-@app.route("/api/update-chat", methods=["POST"])
-def api_update_chat():
+@app.route("/api/update-inquiry", methods=["POST"])
+def api_update_inquiry():
+    """카페24_CS/네이버_CS/채팅상담_CS 어느 탭이든, 문의ID+채널로 대상 탭을 찾아
+    제품/소분류/처리상태를 수정한다 (소분류를 바꾸면 문제유형은 자동으로 따라감 -
+    대분류를 직접 고르게 하면 소분류와 안 맞을 위험이 있어서 그렇게 안 함)."""
     pw = request.headers.get("X-Dashboard-Password", "")
     if pw != os.environ.get("DASHBOARD_PASSWORD"):
         return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
 
     body = request.get_json(silent=True) or {}
-    chat_id = body.get("문의ID", "")
-    if not chat_id:
-        return Response(json.dumps({"error": "문의ID가 필요해요."}), status=400, mimetype="application/json")
+    inquiry_id = body.get("문의ID", "")
+    tab_name = CHANNEL_TO_TAB.get(body.get("채널", ""))
+    if not inquiry_id or not tab_name:
+        return Response(json.dumps({"error": "문의ID와 채널이 필요해요."}), status=400, mimetype="application/json")
 
-    updates = {k: v for k, v in body.items() if k in EDITABLE_CHAT_FIELDS}
+    updates = {k: v for k, v in body.items() if k in EDITABLE_INQUIRY_FIELDS}
     if "소분류" in updates:
         if updates["소분류"] not in MINOR_TO_MAJOR:
             return Response(json.dumps({"error": "알 수 없는 소분류예요."}), status=400, mimetype="application/json")
@@ -472,10 +482,10 @@ def api_update_chat():
     try:
         gc = get_gspread_client()
         spreadsheet = gc.open_by_key(os.environ["SHEET_ID"])
-        tab = spreadsheet.worksheet("채팅상담_CS")
+        tab = spreadsheet.worksheet(tab_name)
         values = tab.get_all_values()
         headers = values[0]
-        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[0] == chat_id), None)
+        row_num = next((i for i, row in enumerate(values[1:], start=2) if row and row[0] == inquiry_id), None)
         if row_num is None:
             return Response(json.dumps({"error": "해당 문의를 찾을 수 없어요."}), status=404, mimetype="application/json")
         for field, value in updates.items():

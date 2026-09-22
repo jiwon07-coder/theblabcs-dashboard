@@ -251,6 +251,9 @@
   .chat-edit-form select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:7px 10px;
     border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
   .chat-edit-actions{display:flex;gap:8px;}
+  .today-minor-select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:5px 8px;
+    border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:140px;}
+  .today-minor-error{margin:4px 0 0;}
 
   /* ===== 리뷰 탭 ===== */
   .review-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--card-radius);
@@ -899,6 +902,10 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('.cc-toggle');
   if (btn) btn.closest('.cc-wrap').classList.toggle('expanded');
 });
+document.addEventListener('change', (e) => {
+  const select = e.target.closest('.today-minor-select');
+  if (select) saveTodayMinor(select);
+});
 
 // ===== 답변 템플릿 매칭 (소분류 기준, "CS 템플릿" 시트에서 가져옴) =====
 function templatesFor(minor) { return TEMPLATES.filter(t => t['소분류'] === minor); }
@@ -1210,7 +1217,10 @@ function renderToday() {
       <td>${r['채널']||''}</td>
       <td>${r['제품']||'-'}</td>
       <td>${r['문제유형']||''}</td>
-      <td class="chip">${r['소분류']||''}</td>
+      <td>
+        <select class="today-minor-select" data-inquiry-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">${minorOptionsHtml(r['소분류'])}</select>
+        <p class="modal-error today-minor-error" style="display:none;"></p>
+      </td>
       <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
       <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
       <td><button class="link-btn tpl-toggle-btn" data-target="${tplId}">템플릿${matched.length ? ' ('+matched.length+')' : ''} ▾</button></td>
@@ -1301,7 +1311,7 @@ function renderChat() {
     const threadId = 'chat-thread-' + i;
     const editId = 'chat-edit-' + i;
     return `
-    <div class="chat-card" data-chat-id="${escapeAttr(r['문의ID'])}">
+    <div class="chat-card" data-chat-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">
       <div class="chat-card-head">
         <span class="chip">${r['날짜']||''}</span>
         <span class="channel-badge" data-channel="${r['채널']||''}">${r['채널']||''}</span>
@@ -1338,15 +1348,32 @@ function renderChat() {
   }).join('');
 }
 
+async function updateInquiry(body) {
+  const res = await fetch('/api/update-inquiry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
+  const major = body['소분류'] ? (TAXONOMY.find(([, minor]) => minor === body['소분류'])?.[0] || '') : undefined;
+  const r = allData.find(x => x['문의ID'] === body['문의ID']);
+  if (r) {
+    if (body['제품'] !== undefined) r['제품'] = body['제품'];
+    if (body['소분류'] !== undefined) { r['소분류'] = body['소분류']; r['문제유형'] = major; }
+    if (body['처리상태'] !== undefined) r['처리상태'] = body['처리상태'];
+  }
+}
+
 async function saveChatEdit(btn) {
   const form = btn.closest('.chat-edit-form');
   const card = btn.closest('.chat-card');
-  const chatId = card.dataset.chatId;
   const errorEl = form.querySelector('.chat-edit-error');
   errorEl.style.display = 'none';
 
   const body = {
-    '문의ID': chatId,
+    '문의ID': card.dataset.chatId,
+    '채널': card.dataset.channel,
     '제품': form.querySelector('.chat-edit-product').value,
     '소분류': form.querySelector('.chat-edit-minor').value,
     '처리상태': form.querySelector('.chat-edit-status').value,
@@ -1354,21 +1381,31 @@ async function saveChatEdit(btn) {
 
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
-    const res = await fetch('/api/update-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
-    const major = TAXONOMY.find(([, minor]) => minor === body['소분류'])?.[0] || '';
-    const r = allData.find(x => x['문의ID'] === chatId);
-    if (r) { r['제품'] = body['제품']; r['소분류'] = body['소분류']; r['문제유형'] = major; r['처리상태'] = body['처리상태']; }
+    await updateInquiry(body);
     renderChat();
   } catch (e) {
     errorEl.textContent = e.message;
     errorEl.style.display = 'block';
     btn.disabled = false; btn.textContent = '저장';
+  }
+}
+
+async function saveTodayMinor(select) {
+  const errorEl = select.closest('td').querySelector('.today-minor-error');
+  errorEl.style.display = 'none';
+  const body = {
+    '문의ID': select.dataset.inquiryId,
+    '채널': select.dataset.channel,
+    '소분류': select.value,
+  };
+  select.disabled = true;
+  try {
+    await updateInquiry(body);
+    renderToday();
+  } catch (e) {
+    errorEl.textContent = e.message;
+    errorEl.style.display = 'block';
+    select.disabled = false;
   }
 }
 
