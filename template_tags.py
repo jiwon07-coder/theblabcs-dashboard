@@ -11,6 +11,9 @@
 
 "공통"은 특정 소분류에 매이지 않는 범용 대응 스크립트(1차 대응, 정책 안내, 감정적 고객
 대응 등) - 대시보드에서는 항상 참고용으로 따로 보여줌.
+
+값은 문자열(소분류 하나) 또는 리스트(여러 소분류에 다 매칭시키고 싶을 때)를 쓸 수 있음
+(2026-09-28 추가) - 예: 15행처럼 한 템플릿 내용이 두 소분류에 다 해당되는 경우.
 """
 
 ROW_TO_MINOR = {
@@ -22,7 +25,7 @@ ROW_TO_MINOR = {
     12: "AS 여부",
     13: "공통",
     14: "잘 열림",
-    15: "안열림",
+    15: ["안열림", "케이블 사용법"],  # 배터리 안 넣고 닫혔을 때 케이블로 여는 법 - 두 소분류 다 해당(2026-09-28)
     16: "케이블 구매안내",
     17: "비상 해제 요청",
     18: "충전 방법",
@@ -77,10 +80,12 @@ def load_templates(gc, sheet_id):
             last_product = product
         else:
             product = last_product
-        templates.append({
-            "소분류": minor,
-            "제품": product,
-            "질문": row[idx_q] if idx_q is not None and len(row) > idx_q else "",
-            "답변": row[idx_a] if idx_a is not None and len(row) > idx_a else "",
-        })
+        minors = minor if isinstance(minor, list) else [minor]
+        for m in minors:
+            templates.append({
+                "소분류": m,
+                "제품": product,
+                "질문": row[idx_q] if idx_q is not None and len(row) > idx_q else "",
+                "답변": row[idx_a] if idx_a is not None and len(row) > idx_a else "",
+            })
     return templates
