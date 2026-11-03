@@ -251,7 +251,7 @@
   .chat-edit-form select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:7px 10px;
     border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
   .chat-edit-actions{display:flex;gap:8px;}
-  .inquiry-minor-select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:5px 8px;
+  .inquiry-minor-select,.inquiry-product-select{font-family:'Inter','Pretendard',sans-serif;font-size:12.5px;padding:5px 8px;
     border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:140px;}
   .inquiry-minor-error{margin:4px 0 0;}
 
@@ -909,8 +909,10 @@ document.addEventListener('click', (e) => {
   if (btn) btn.closest('.cc-wrap').classList.toggle('expanded');
 });
 document.addEventListener('change', (e) => {
-  const select = e.target.closest('.inquiry-minor-select');
-  if (select) saveInquiryMinor(select);
+  const minorSelect = e.target.closest('.inquiry-minor-select');
+  if (minorSelect) { saveInquirySelect(minorSelect, '소분류'); return; }
+  const productSelect = e.target.closest('.inquiry-product-select');
+  if (productSelect) saveInquirySelect(productSelect, '제품');
 });
 
 // ===== 답변 템플릿 매칭 (소분류 기준, "CS 템플릿" 시트에서 가져옴) =====
@@ -1393,18 +1395,20 @@ async function saveChatEdit(btn) {
   }
 }
 
-async function saveInquiryMinor(select) {
+async function saveInquirySelect(select, field) {
   const errorEl = select.closest('td').querySelector('.inquiry-minor-error');
   errorEl.style.display = 'none';
   const body = {
     '문의ID': select.dataset.inquiryId,
     '채널': select.dataset.channel,
-    '소분류': select.value,
+    [field]: select.value,
   };
   select.disabled = true;
   try {
     await updateInquiry(body);
     renderTable();
+    // 주간 분석 드릴다운에서 수정했다면 차트(문제유형 집계)와 목록도 같이 갱신
+    if (analysisDrilldown) { renderAnalysisCharts(); renderAnalysisDrilldown(); }
   } catch (e) {
     errorEl.textContent = e.message;
     errorEl.style.display = 'block';
@@ -1536,7 +1540,7 @@ function renderTypeChart(rows) {
     const rect = svgEl('rect', {x:padL, y:y+2, width:Math.max(2,w), height:16, rx:4, fill:TYPE_COLOR[t], class:'bar-seg'});
     rect.addEventListener('mouseenter', e => showTip(e, `<b>${t}</b>: ${counts[i]}건`));
     rect.addEventListener('mousemove', moveTip); rect.addEventListener('mouseleave', hideTip);
-    rect.addEventListener('click', () => showAnalysisDrilldown(rows.filter(r => r['문제유형']===t), t));
+    rect.addEventListener('click', () => showAnalysisDrilldown(r => r['문제유형']===t, t));
     svg.appendChild(rect);
     const val = svgEl('text', {x:padL + w + 8, y:y+15, 'font-size':11}); val.textContent = counts[i]; svg.appendChild(val);
   });
@@ -1568,7 +1572,7 @@ function renderProductChart(rows) {
       rect.addEventListener('mouseenter', e => showTip(e, `<b>${row.p}</b><br>${type}: ${v}건`));
       rect.addEventListener('mousemove', moveTip); rect.addEventListener('mouseleave', hideTip);
       rect.addEventListener('click', () => showAnalysisDrilldown(
-        rows.filter(r => r['제품']===row.p && r['문제유형']===type), `${row.p} · ${type}`));
+        r => r['제품']===row.p && r['문제유형']===type, `${row.p} · ${type}`));
       svg.appendChild(rect);
       x += w;
     });
@@ -1579,40 +1583,65 @@ function renderProductChart(rows) {
     `<span><span class="dot" style="background:${TYPE_COLOR[t]}"></span>${t}</span>`).join('');
 }
 
-function renderAnalysis() {
+function analysisWeekRows() {
   const wk = document.getElementById('fAnalysisWeek').value;
-  const rows = allData.filter(r => getMonday(r['날짜']) === wk);
+  return allData.filter(r => getMonday(r['날짜']) === wk);
+}
+function renderAnalysisCharts() {
+  const rows = analysisWeekRows();
   document.getElementById('analysisWeekTotal').textContent = rows.length;
   renderTypeChart(rows);
   renderProductChart(rows);
+}
+function renderAnalysis() {
+  renderAnalysisCharts();
   hideAnalysisDrilldown();
 }
 
-function showAnalysisDrilldown(rows, label) {
+// 막대를 눌러 연 드릴다운의 조건. 제품/소분류를 수정하면 그 문의가 조건에서 빠질 수 있어서
+// (예: "미니 · 사용 방법" 목록에서 소분류를 바꾸면 더 이상 해당 안 됨) 결과가 아니라 조건을
+// 저장해두고, 수정 후 같은 조건으로 차트와 목록을 다시 계산한다.
+let analysisDrilldown = null;
+
+function showAnalysisDrilldown(filterFn, label) {
+  analysisDrilldown = { filterFn, label };
+  renderAnalysisDrilldown();
+}
+function renderAnalysisDrilldown() {
+  if (!analysisDrilldown) return;
+  const rows = analysisWeekRows().filter(analysisDrilldown.filterFn);
   document.getElementById('analysisDrilldownHead').style.display = 'flex';
-  document.getElementById('analysisDrilldownTitle').textContent = `${label} (${rows.length}건)`;
+  document.getElementById('analysisDrilldownTitle').textContent = `${analysisDrilldown.label} (${rows.length}건)`;
   document.getElementById('analysisDrilldownList').innerHTML = renderInquirySnapshotTable(rows);
 }
 function hideAnalysisDrilldown() {
+  analysisDrilldown = null;
   document.getElementById('analysisDrilldownHead').style.display = 'none';
   document.getElementById('analysisDrilldownList').innerHTML = '';
 }
 document.getElementById('analysisDrilldownClose').addEventListener('click', hideAnalysisDrilldown);
 
-// 주간 분석 막대그래프 드릴다운에서 쓰는, 소분류 수정 없이 읽기 전용으로 보여주는
-// 간단한 문의 표 (renderTable()의 문의 목록 표와 달리 여기선 편집 불가 - 수정은
-// "문의 목록" 표에서 하도록 유도).
+// 주간 분석 막대그래프 드릴다운에서 쓰는 문의 표. 제품/소분류만 바로 수정할 수 있음
+// (문제유형은 소분류에 따라 자동으로 따라감 - /api/update-inquiry 참고).
 function renderInquirySnapshotTable(rows) {
   if (!rows.length) return `<p class="empty-state">해당하는 문의가 없어요.</p>`;
   const sorted = rows.slice().sort((a, b) => (b['날짜']||'').localeCompare(a['날짜']||''));
+  const productOptions = (selected) => PRODUCT_OPTIONS.map(p =>
+    `<option value="${p}" ${p === selected ? 'selected' : ''}>${p}</option>`).join('');
   return `<div style="overflow-x:auto;"><table>
     <thead><tr><th>날짜</th><th>채널</th><th>제품</th><th>소분류</th><th>고객문의</th><th>답변내용</th><th>상태</th></tr></thead>
     <tbody>${sorted.map(r => `
       <tr>
         <td class="chip">${r['날짜']||''}</td>
         <td>${r['채널']||''}</td>
-        <td>${r['제품']||'-'}</td>
-        <td class="chip">${r['소분류']||''}</td>
+        <td>
+          <select class="inquiry-product-select" data-inquiry-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">${productOptions(r['제품'])}</select>
+          <p class="modal-error inquiry-minor-error" style="display:none;"></p>
+        </td>
+        <td>
+          <select class="inquiry-minor-select" data-inquiry-id="${escapeAttr(r['문의ID'])}" data-channel="${escapeAttr(r['채널'])}">${minorOptionsHtml(r['소분류'])}</select>
+          <p class="modal-error inquiry-minor-error" style="display:none;"></p>
+        </td>
         <td class="content-cell">${collapsibleCell(r['고객문의'])}</td>
         <td class="content-cell">${collapsibleCell(r['답변내용'])}</td>
         <td><span class="badge" data-status="${r['처리상태']}">${r['처리상태']||''}</span></td>
