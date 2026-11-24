@@ -214,6 +214,40 @@
   .link-btn:hover{color:var(--ink);text-decoration:underline;}
   @media (max-width:700px){.home-stats{grid-template-columns:1fr;}}
 
+  /* ===== VOC 분석 탭 ===== */
+  .voc-note{font-size:12px;color:var(--slate);margin:0;line-height:1.6;}
+  .voc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .voc-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+  @media (max-width:700px){.voc-kpis{grid-template-columns:1fr;}}
+  .voc-kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--card-radius);padding:18px 20px;}
+  .voc-kpi .stat-value{font-size:30px;}
+  .voc-kpi .voc-kpi-foot{font-size:11.5px;color:var(--slate);margin-top:9px;line-height:1.5;}
+  .voc-delta{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;margin-left:8px;}
+  .voc-delta.worse{color:var(--coral);} .voc-delta.better{color:var(--good);} .voc-delta.flat{color:var(--slate);}
+  .voc-heat th, .voc-heat td{text-align:center;white-space:nowrap;}
+  .voc-heat th:first-child, .voc-heat td:first-child{text-align:left;}
+  .voc-heat thead th{text-transform:none;letter-spacing:0;font-size:11px;}
+  .voc-cell{display:block;min-width:34px;padding:7px 6px;border-radius:7px;font-variant-numeric:tabular-nums;
+    font-size:12.5px;cursor:pointer;border:none;width:100%;font-family:inherit;}
+  .voc-cell.zero{color:var(--slate);opacity:0.4;cursor:default;background:none;}
+  .voc-cell:not(.zero):hover{outline:2px solid var(--ink);outline-offset:-2px;}
+  .voc-heat tbody tr:hover{background:none;}
+  .voc-total{font-weight:600;font-variant-numeric:tabular-nums;}
+  .voc-rise-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .voc-rise-row:last-child{border-bottom:none;}
+  .voc-rise-name{flex:1;min-width:0;}
+  .voc-rise-num{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:12px;color:var(--slate);font-variant-numeric:tabular-nums;}
+  .voc-num-btn{background:none;border:none;padding:0;font:inherit;color:var(--ink);cursor:pointer;
+    text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;font-variant-numeric:tabular-nums;}
+  .voc-num-btn:hover{text-decoration-color:var(--ink);}
+  .voc-action{color:var(--slate);font-size:12.5px;}
+  .voc-seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;flex:none;}
+  .voc-seg button{background:none;border:none;border-radius:999px;padding:5px 12px;font-family:inherit;font-size:12px;
+    color:var(--slate);cursor:pointer;}
+  .voc-seg button.active{background:var(--ink);color:var(--paper);}
+  .voc-drill:empty{display:none;}
+  .voc-drill{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);}
+
   .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
   .panel-head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
   .panel-head-row select{flex:none;}
@@ -512,6 +546,12 @@
             <span class="sb-dot"></span><span class="sb-text">제품별 분석</span>
           </span>
         </button>
+        <button class="sb-item" data-tab="voc">
+          <span class="sb-label">
+            <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10v4a1 1 0 0 0 1 1h3l5 4V5L7 9H4a1 1 0 0 0-1 1Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg></span>
+            <span class="sb-dot"></span><span class="sb-text">VOC 분석</span>
+          </span>
+        </button>
         <button class="sb-item" data-tab="review">
           <span class="sb-label">
             <span class="sb-icon-wrap"><svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.8 6.3.7-4.6 4.4 1.2 6.2L12 17l-5.6 3.1 1.2-6.2L3 9.5l6.3-.7Z"/></svg></span>
@@ -695,6 +735,56 @@
         </div>
         <p id="productRankEmpty" class="empty-state" style="display:none;">이 주엔 문의가 없어요.</p>
       </div>
+    </div>
+
+    <!-- ===== 탭: VOC 분석 ===== -->
+    <div class="tab-panel" id="tab-voc">
+      <div class="voc-toolbar">
+        <p class="voc-note">CS 문의(카페24·네이버)와 채팅 상담을 합쳐 본 고객 목소리예요. 숫자를 누르면 원문을 볼 수 있어요.</p>
+        <select id="fVocPeriod">
+          <option value="30">최근 30일</option>
+          <option value="90" selected>최근 90일</option>
+          <option value="180">최근 180일</option>
+        </select>
+      </div>
+
+      <div class="voc-kpis" id="vocKpis"></div>
+
+      <div class="panel section">
+        <h3>제품 개선 포인트</h3>
+        <p class="sub">제품별로 어떤 불량 문의가 들어왔는지 - 진할수록 많아요</p>
+        <div style="overflow-x:auto;"><table class="voc-heat" id="vocHeat"></table></div>
+        <h4 class="chart-subtitle" style="margin-top:22px;">직전 기간보다 비중이 늘어난 불량</h4>
+        <p class="sub">전체 VOC 중 차지하는 비중으로 비교해요 (채팅 기록이 늘어난 영향을 덜 받게)</p>
+        <div id="vocRising"></div>
+        <div class="voc-drill" id="vocDrill-defect"></div>
+      </div>
+
+      <div class="panel section">
+        <h3>CS 업무 줄이기 - 안내로 막을 수 있는 문의</h3>
+        <p class="sub">설명서·상세페이지·알림으로 미리 답해두면 줄어들 수 있는 문의예요. "줄이는 방법"은 제안이에요.</p>
+        <div style="overflow-x:auto;"><table>
+          <thead><tr><th>문의 유형</th><th>건수</th><th>전체 중</th><th>직전 대비</th><th>줄이는 방법 (제안)</th></tr></thead>
+          <tbody id="vocPreventBody"></tbody>
+        </table></div>
+        <p class="sub" id="vocEtcNote" style="margin-top:12px;"></p>
+        <div class="voc-drill" id="vocDrill-prevent"></div>
+      </div>
+
+      <div class="panel section">
+        <div class="panel-head-row">
+          <h3>월별 추이</h3>
+          <div class="voc-seg" id="vocTrendMode">
+            <button class="active" data-mode="share">비중</button>
+            <button data-mode="count">건수</button>
+          </div>
+        </div>
+        <p class="sub">카카오톡·네이버 톡톡 채팅은 2026년 9월부터 기록되기 시작해서, 그 뒤로 건수가 늘어난 건 채널이 추가된 영향도 있어요. 흐름은 비중으로 보는 게 정확해요.</p>
+        <div id="vocTrend"></div>
+        <div class="legend" id="vocTrendLegend"></div>
+        <div class="voc-drill" id="vocDrill-trend"></div>
+      </div>
+      <p class="voc-note" id="vocFootnote"></p>
     </div>
 
     <!-- ===== 탭: 리뷰 ===== -->
@@ -1014,6 +1104,7 @@ async function loadData(pw) {
     TEMPLATES = payload.templates || [];
     REVIEWS = payload.reviews || [];
     WORD_FREQUENCY = payload.wordFrequency || {'부모': [], '학생 본인': []};
+    VOC_DATA = payload.vocRecords || [];
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
@@ -1077,9 +1168,10 @@ const TAB_META = {
   templates: { eyebrow: 'Templates', title: '답변 템플릿' },
   weekly: { eyebrow: 'Weekly', title: '주간 문의 분석' },
   products: { eyebrow: 'Products', title: '제품별 분석' },
+  voc: { eyebrow: 'Voice of Customer', title: 'VOC 분석' },
   review: { eyebrow: 'Reviews', title: '리뷰' },
 };
-const TAB_GROUP = { today: 'cs', chat: 'cs', templates: 'cs', weekly: 'analysis', products: 'analysis', review: 'analysis' };
+const TAB_GROUP = { today: 'cs', chat: 'cs', templates: 'cs', weekly: 'analysis', products: 'analysis', voc: 'analysis', review: 'analysis' };
 function expandGroup(group) {
   if (!group) return;
   document.getElementById('sbGroup-' + group)?.classList.add('expanded');
@@ -1094,6 +1186,7 @@ function switchTab(tab) {
   if (tab === 'weekly') { renderAnalysis(); }
   if (tab === 'products') { renderProductRank(); }
   if (tab === 'templates') { renderTemplatesTab(); }
+  if (tab === 'voc') { renderVoc(); }
 }
 document.getElementById('sbNav').addEventListener('click', (e) => {
   const groupBtn = e.target.closest('.sb-group-toggle');
@@ -1362,12 +1455,17 @@ async function updateInquiry(body) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || '저장에 실패했어요.');
   const major = body['소분류'] ? (TAXONOMY.find(([, minor]) => minor === body['소분류'])?.[0] || '') : undefined;
-  const r = allData.find(x => x['문의ID'] === body['문의ID']);
-  if (r) {
+  // 일반 탭용 allData와 VOC 탭용 VOC_DATA(전체 기간)는 별개 배열이라 둘 다 갱신
+  const targets = [
+    allData.find(x => x['문의ID'] === body['문의ID']),
+    VOC_DATA.find(x => x['문의ID'] === body['문의ID'] && x['채널'] === body['채널']),
+  ];
+  targets.forEach(r => {
+    if (!r) return;
     if (body['제품'] !== undefined) r['제품'] = body['제품'];
     if (body['소분류'] !== undefined) { r['소분류'] = body['소분류']; r['문제유형'] = major; }
     if (body['처리상태'] !== undefined) r['처리상태'] = body['처리상태'];
-  }
+  });
 }
 
 async function saveChatEdit(btn) {
@@ -1409,6 +1507,8 @@ async function saveInquirySelect(select, field) {
     renderTable();
     // 주간 분석 드릴다운에서 수정했다면 차트(문제유형 집계)와 목록도 같이 갱신
     if (analysisDrilldown) { renderAnalysisCharts(); renderAnalysisDrilldown(); }
+    // VOC 탭 원문 목록에서 수정했다면 히트맵·표·추이도 같이 갱신
+    if (vocDrill && document.getElementById('tab-voc').classList.contains('active')) renderVoc();
   } catch (e) {
     errorEl.textContent = e.message;
     errorEl.style.display = 'block';
@@ -1620,6 +1720,248 @@ function hideAnalysisDrilldown() {
   document.getElementById('analysisDrilldownList').innerHTML = '';
 }
 document.getElementById('analysisDrilldownClose').addEventListener('click', hideAnalysisDrilldown);
+
+// ===== VOC 분석 =====
+// 데이터: /api/data의 vocRecords(전체 기간, 92일 제한 없음). 일반 탭의 allData와는 별개 배열이라
+// 정보 수정(updateInquiry) 시 두 곳 다 갱신함.
+let VOC_DATA = [];
+const DEFECT_MINORS = TAXONOMY.filter(([major]) => major === '제품 불량').map(([, minor]) => minor);
+// "안내로 막을 수 있는 문의" - 설명서·상세페이지·알림으로 미리 답해두면 줄어들 수 있는 소분류와
+// 그 방법(제안). 비상 해제 요청(이미 잠긴 긴급 상황)과 기타(내용 제각각)는 일부러 뺌.
+const PREVENT_ACTIONS = {
+  '비상 해제 가능 여부': '상세페이지·설명서에 잠금 중 해제 정책을 미리 명시',
+  '배송문의': '주문 직후·출고 시 배송 일정 알림 강화',
+  '충전 방법': '설명서·상세페이지에 충전 방법과 충전 표시 안내 보강',
+  '케이블 사용법': '케이블 사용 안내 카드 동봉 또는 사용 영상 링크',
+  '제품 사이즈, 기종 문의': '상세페이지 상단에 호환 기종·내부 치수표',
+  '무음 모드': '설명서에 무음 설정 방법 추가',
+  '오픈 방법': '설명서에 잠금이 끝난 뒤 여는 순서 안내',
+  '사용 방법': '자주 묻는 사용법을 FAQ로 정리',
+  'AS 여부': '상세페이지·FAQ에 AS 기간과 절차 명시',
+  '케이블 구매안내': '상세페이지에 케이블 단독 구매 링크 노출',
+};
+const VOC_PRODUCT_ORDER = ['오리지널', '오리지널 V2', '프로', '미니', '오리지널 케이블', '몰입의 시간', '미분류'];
+const vocProductLabel = (p) => (!p || p === '미분류') ? '제품 미확인' : p;
+let vocDrill = null;       // { key, id } - 지금 펼쳐진 원문 목록
+let vocTrendMode = 'share';
+const vocHandlers = {};    // data-voc-id -> { key, fn, label }
+
+function vocIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function vocDaysAgo(n) { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - n); return vocIso(d); }
+// 카페24에서 삭제돼 "확인 필요"가 된 행은 대부분 스팸글이라 VOC 집계에서 뺌
+function vocBase() { return VOC_DATA.filter(r => r['처리상태'] !== '확인 필요' && r['날짜']); }
+function vocPeriods() {
+  const n = Number(document.getElementById('fVocPeriod').value);
+  const curFrom = vocDaysAgo(n - 1), prevFrom = vocDaysAgo(2 * n - 1), today = vocDaysAgo(0);
+  const inCur = (r) => r['날짜'] >= curFrom && r['날짜'] <= today;
+  const inPrev = (r) => r['날짜'] >= prevFrom && r['날짜'] < curFrom;
+  const base = vocBase();
+  return { n, inCur, inPrev, cur: base.filter(inCur), prev: base.filter(inPrev) };
+}
+const vocPct = (a, b) => b ? (a / b * 100) : 0;
+const vocFmtPct = (v) => `${v.toFixed(v >= 10 ? 0 : 1)}%`;
+function vocDeltaPp(curShare, prevShare, prevTotal, higherIsWorse = true) {
+  if (!prevTotal) return `<span class="voc-delta flat">비교 데이터 없음</span>`;
+  const d = curShare - prevShare;
+  if (Math.abs(d) < 0.5) return `<span class="voc-delta flat">변화 없음</span>`;
+  const cls = (d > 0) === higherIsWorse ? 'worse' : 'better';
+  return `<span class="voc-delta ${cls}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}%p</span>`;
+}
+function vocBtn(key, fn, label, text) {
+  const id = 'v' + Object.keys(vocHandlers).length;
+  vocHandlers[id] = { key, fn, label };
+  return `<button class="voc-num-btn" data-voc-id="${id}">${text}</button>`;
+}
+const isPreventable = (r) => PREVENT_ACTIONS.hasOwnProperty(r['소분류']) && r['소분류'] !== '' &&
+  !(r['문제유형'] === '제품 불량');
+
+function renderVoc() {
+  for (const k in vocHandlers) delete vocHandlers[k];
+  const { n, inCur, inPrev, cur, prev } = vocPeriods();
+  const isDefect = (r) => r['문제유형'] === '제품 불량';
+
+  // --- KPI ---
+  const curDef = cur.filter(isDefect).length, prevDef = prev.filter(isDefect).length;
+  const curPrev = cur.filter(isPreventable).length, prevPrev = prev.filter(isPreventable).length;
+  const countDelta = prev.length
+    ? `<span class="voc-delta flat">${cur.length >= prev.length ? '▲' : '▼'}${Math.abs(cur.length - prev.length)}건</span>`
+    : `<span class="voc-delta flat">비교 데이터 없음</span>`;
+  document.getElementById('vocKpis').innerHTML = `
+    <div class="voc-kpi">
+      <div class="stat-label">고객 목소리 (최근 ${n}일)</div>
+      <div class="stat-value">${vocBtn('trend', inCur, `최근 ${n}일 전체`, cur.length)}<span class="stat-hint" style="font-size:14px;">건</span>${countDelta}</div>
+      <div class="voc-kpi-foot">직전 ${n}일 ${prev.length}건 · 채팅 기록이 늘어난 영향도 포함돼요</div>
+    </div>
+    <div class="voc-kpi">
+      <div class="stat-label">제품 불량 비중</div>
+      <div class="stat-value">${vocFmtPct(vocPct(curDef, cur.length))}${vocDeltaPp(vocPct(curDef, cur.length), vocPct(prevDef, prev.length), prev.length)}</div>
+      <div class="voc-kpi-foot">${vocBtn('defect', r => inCur(r) && isDefect(r), `최근 ${n}일 제품 불량`, curDef + '건')} · 직전 ${n}일 ${vocFmtPct(vocPct(prevDef, prev.length))}</div>
+    </div>
+    <div class="voc-kpi">
+      <div class="stat-label">안내로 막을 수 있는 문의 비중</div>
+      <div class="stat-value">${vocFmtPct(vocPct(curPrev, cur.length))}${vocDeltaPp(vocPct(curPrev, cur.length), vocPct(prevPrev, prev.length), prev.length)}</div>
+      <div class="voc-kpi-foot">${vocBtn('prevent', r => inCur(r) && isPreventable(r), `최근 ${n}일 안내로 막을 수 있는 문의`, curPrev + '건')} · 직전 ${n}일 ${vocFmtPct(vocPct(prevPrev, prev.length))}</div>
+    </div>`;
+
+  // --- 제품 × 불량 히트맵 ---
+  const defects = cur.filter(isDefect);
+  const prodNorm = (r) => r['제품'] || '미분류';
+  const products = VOC_PRODUCT_ORDER.filter(p => defects.some(r => prodNorm(r) === p))
+    .concat([...new Set(defects.map(prodNorm))].filter(p => !VOC_PRODUCT_ORDER.includes(p)));
+  const cellCount = (p, m) => defects.filter(r => prodNorm(r) === p && r['소분류'] === m).length;
+  const max = Math.max(1, ...products.flatMap(p => DEFECT_MINORS.map(m => cellCount(p, m))));
+  const heat = document.getElementById('vocHeat');
+  if (!products.length) {
+    heat.innerHTML = `<tbody><tr><td class="empty-state">이 기간엔 제품 불량 문의가 없어요.</td></tr></tbody>`;
+  } else {
+    const cell = (v, fn, label) => {
+      if (!v) return `<td><span class="voc-cell zero">·</span></td>`;
+      const a = 0.1 + 0.75 * (v / max);
+      const id = 'v' + Object.keys(vocHandlers).length;
+      vocHandlers[id] = { key: 'defect', fn, label };
+      return `<td><button class="voc-cell" data-voc-id="${id}" style="background:rgba(217,97,79,${a.toFixed(2)});color:${a > 0.5 ? '#fff' : 'var(--ink)'}">${v}</button></td>`;
+    };
+    heat.innerHTML = `
+      <thead><tr><th>제품</th>${DEFECT_MINORS.map(m => `<th>${m}</th>`).join('')}<th>불량 합계</th><th>제품 VOC 중 불량</th></tr></thead>
+      <tbody>${products.map(p => {
+        const total = defects.filter(r => prodNorm(r) === p).length;
+        const prodAll = cur.filter(r => prodNorm(r) === p).length;
+        return `<tr><td>${vocProductLabel(p)}</td>${DEFECT_MINORS.map(m =>
+          cell(cellCount(p, m), r => inCur(r) && prodNorm(r) === p && r['소분류'] === m, `${vocProductLabel(p)} · ${m}`)).join('')}
+          <td class="voc-total">${total}</td><td class="chip">${vocFmtPct(vocPct(total, prodAll))} <span style="opacity:.7">(${prodAll}건 중)</span></td></tr>`;
+      }).join('')}
+      <tr><td class="chip">합계</td>${DEFECT_MINORS.map(m => {
+        const v = defects.filter(r => r['소분류'] === m).length;
+        return `<td class="voc-total">${v || '<span style="opacity:.4">·</span>'}</td>`;
+      }).join('')}<td class="voc-total">${defects.length}</td><td></td></tr></tbody>`;
+  }
+
+  // --- 비중이 늘어난 불량 ---
+  const rising = DEFECT_MINORS.map(m => {
+    const c = cur.filter(r => r['소분류'] === m && isDefect(r)).length;
+    const p = prev.filter(r => r['소분류'] === m && isDefect(r)).length;
+    return { m, c, p, d: vocPct(c, cur.length) - vocPct(p, prev.length) };
+  }).filter(x => x.c >= 3 && x.d >= 0.5).sort((a, b) => b.d - a.d).slice(0, 5);
+  document.getElementById('vocRising').innerHTML = !prev.length
+    ? `<p class="sub">직전 ${n}일 데이터가 없어서 비교할 수 없어요.</p>`
+    : !rising.length ? `<p class="sub">비중이 눈에 띄게 늘어난 불량 유형은 없어요 (3건 이상 기준).</p>`
+    : rising.map(x => `<div class="voc-rise-row">
+        <span class="voc-rise-name">${x.m}</span>
+        <span class="voc-rise-num">${vocBtn('defect', r => inCur(r) && isDefect(r) && r['소분류'] === x.m, `최근 ${n}일 ${x.m}`, x.c + '건')} (${vocFmtPct(vocPct(x.c, cur.length))}) ← 직전 ${x.p}건 (${vocFmtPct(vocPct(x.p, prev.length))})</span>
+        <span class="voc-delta worse">▲${x.d.toFixed(1)}%p</span></div>`).join('');
+
+  // --- 안내로 막을 수 있는 문의 ---
+  const preventRows = Object.keys(PREVENT_ACTIONS).map(m => {
+    const c = cur.filter(r => r['소분류'] === m && isPreventable(r)).length;
+    const p = prev.filter(r => r['소분류'] === m && isPreventable(r)).length;
+    return { m, c, p };
+  }).filter(x => x.c > 0).sort((a, b) => b.c - a.c);
+  document.getElementById('vocPreventBody').innerHTML = preventRows.length ? preventRows.map(x => `
+    <tr>
+      <td>${x.m}</td>
+      <td>${vocBtn('prevent', r => inCur(r) && isPreventable(r) && r['소분류'] === x.m, `최근 ${n}일 ${x.m}`, x.c + '건')}</td>
+      <td class="chip">${vocFmtPct(vocPct(x.c, cur.length))}</td>
+      <td>${vocDeltaPp(vocPct(x.c, cur.length), vocPct(x.p, prev.length), prev.length)}</td>
+      <td class="voc-action">${PREVENT_ACTIONS[x.m]}</td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty-state">이 기간엔 해당하는 문의가 없어요.</td></tr>`;
+  const etcFn = r => inCur(r) && r['문제유형'] === '기타 문의' && r['소분류'] === '기타';
+  const etc = cur.filter(etcFn).length;
+  document.getElementById('vocEtcNote').innerHTML = etc
+    ? `분류가 '기타'인 문의도 ${vocBtn('prevent', etcFn, `최근 ${n}일 기타 문의`, etc + '건')}(${vocFmtPct(vocPct(etc, cur.length))}) 있어요. 반품·교환 절차 문의처럼 내용이 제각각이라 위 표에선 뺐는데, 새로 반복되는 문의가 숨어 있을 수 있으니 가끔 훑어보세요.`
+    : '';
+
+  renderVocTrend();
+
+  const excluded = VOC_DATA.filter(r => r['처리상태'] === '확인 필요').length;
+  document.getElementById('vocFootnote').textContent =
+    `집계 제외: 채널에서 사라진 '확인 필요' 문의 ${excluded}건(삭제된 글·스팸 등). 판매량 데이터가 없어서 불량률이 아니라 문의 건수 기준이에요.`;
+
+  // 원문 목록에서 분류를 고친 뒤 다시 그릴 때, 펼쳐둔 목록도 같은 조건으로 다시 계산
+  // (기간을 바꿀 땐 조건 자체가 달라지므로 fVocPeriod change에서 먼저 닫음)
+  if (vocDrill) renderVocDrill(vocDrill);
+}
+
+function renderVocTrend() {
+  const container = document.getElementById('vocTrend');
+  container.innerHTML = '';
+  const base = vocBase();
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const W = container.clientWidth || 800, H = 220, padB = 28, padT = 22;
+  const svg = svgEl('svg', { width: '100%', height: H, viewBox: `0 0 ${W} ${H}` });
+  const slot = W / months.length, bw = Math.min(56, slot * 0.55);
+  const totals = months.map(m => base.filter(r => r['날짜'].startsWith(m)).length);
+  const maxTotal = Math.max(1, ...totals);
+  months.forEach((m, i) => {
+    const rows = base.filter(r => r['날짜'].startsWith(m));
+    const x = i * slot + (slot - bw) / 2;
+    const barH = vocTrendMode === 'share' ? (rows.length ? H - padB - padT : 0) : (rows.length / maxTotal) * (H - padB - padT);
+    let y = H - padB;
+    TYPE_ORDER.forEach(t => {
+      const v = rows.filter(r => r['문제유형'] === t).length;
+      if (!v) return;
+      const h = barH * v / rows.length;
+      y -= h;
+      const rect = svgEl('rect', { x, y, width: bw, height: Math.max(0, h - 1), fill: TYPE_COLOR[t], class: 'bar-seg', rx: 2 });
+      const label = `${Number(m.slice(5))}월 · ${t}`;
+      rect.addEventListener('mouseenter', e => showTip(e, `<b>${label}</b><br>${v}건 (${vocFmtPct(vocPct(v, rows.length))})`));
+      rect.addEventListener('mousemove', moveTip); rect.addEventListener('mouseleave', hideTip);
+      rect.addEventListener('click', () => {
+        hideTip();
+        showVocDrill({ key: 'trend', label, fn: r => r['날짜'].startsWith(m) && r['문제유형'] === t });
+      });
+      svg.appendChild(rect);
+    });
+    const top = svgEl('text', { x: x + bw / 2, y: (rows.length ? H - padB - barH : H - padB) - 6, 'font-size': 11, 'text-anchor': 'middle', fill: 'currentColor' });
+    top.textContent = rows.length ? `${rows.length}건` : '-';
+    svg.appendChild(top);
+    const xl = svgEl('text', { x: x + bw / 2, y: H - 8, 'font-size': 11.5, 'text-anchor': 'middle', class: 'prod-label' });
+    xl.textContent = `${Number(m.slice(5))}월${i === months.length - 1 ? ' (진행 중)' : ''}`;
+    svg.appendChild(xl);
+  });
+  container.appendChild(svg);
+  document.getElementById('vocTrendLegend').innerHTML = TYPE_ORDER.map(t =>
+    `<span><span class="dot" style="background:${TYPE_COLOR[t]}"></span>${t}</span>`).join('');
+}
+
+function showVocDrill(h) {
+  vocDrill = h;
+  renderVocDrill(h);
+}
+function renderVocDrill(h) {
+  document.querySelectorAll('.voc-drill').forEach(el => { el.innerHTML = ''; });
+  const rows = vocBase().filter(h.fn);
+  const box = document.getElementById('vocDrill-' + h.key);
+  box.innerHTML = `<div class="panel-head-row"><h4 class="chart-subtitle" style="margin:0;">${escapeHtml(h.label)} (${rows.length}건)</h4>
+    <button class="link-btn" data-voc-close>닫기 ✕</button></div>${renderInquirySnapshotTable(rows)}`;
+}
+function closeVocDrill() {
+  vocDrill = null;
+  document.querySelectorAll('.voc-drill').forEach(el => { el.innerHTML = ''; });
+}
+document.getElementById('tab-voc').addEventListener('click', (e) => {
+  if (e.target.closest('[data-voc-close]')) { closeVocDrill(); return; }
+  const btn = e.target.closest('[data-voc-id]');
+  if (btn && vocHandlers[btn.dataset.vocId]) {
+    const h = vocHandlers[btn.dataset.vocId];
+    showVocDrill(h);
+    document.getElementById('vocDrill-' + h.key).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+});
+document.getElementById('fVocPeriod').addEventListener('change', () => { closeVocDrill(); renderVoc(); });
+document.getElementById('vocTrendMode').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-mode]');
+  if (!b) return;
+  vocTrendMode = b.dataset.mode;
+  document.querySelectorAll('#vocTrendMode button').forEach(x => x.classList.toggle('active', x === b));
+  renderVocTrend();
+});
 
 // 주간 분석 막대그래프 드릴다운에서 쓰는 문의 표. 제품/소분류만 바로 수정할 수 있음
 // (문제유형은 소분류에 따라 자동으로 따라감 - /api/update-inquiry 참고).

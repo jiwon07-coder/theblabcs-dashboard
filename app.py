@@ -181,10 +181,22 @@ def fetch_records():
                 r["문제유형"] = major
                 r["소분류"] = minor
         all_records.extend(records)
-
-    cutoff = (datetime.now(KST) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
-    all_records = [r for r in all_records if r.get("날짜", "") >= cutoff]
     return all_records
+
+
+def recent_only(records):
+    """대시보드 일반 탭(오늘 처리/주간 분석 등)용 최근 RECENT_DAYS일 필터. VOC 탭은 월별
+    추이를 봐야 해서 이 필터 없이 전체 기간(vocRecords)을 따로 받음."""
+    cutoff = (datetime.now(KST) - timedelta(days=RECENT_DAYS)).strftime("%Y-%m-%d")
+    return [r for r in records if r.get("날짜", "") >= cutoff]
+
+
+# VOC 탭에 필요한 필드만 - 전체 기간이라 행이 많아도 응답이 너무 커지지 않게.
+VOC_FIELDS = ["문의ID", "날짜", "채널", "제품", "문제유형", "소분류", "고객문의", "답변내용", "처리상태"]
+
+
+def voc_records(records):
+    return [{k: r.get(k, "") for k in VOC_FIELDS} for r in records]
 
 
 def fetch_summaries():
@@ -315,7 +327,8 @@ def api_data():
         return Response(json.dumps({"error": "unauthorized"}), status=401, mimetype="application/json")
 
     try:
-        records = fetch_records()
+        every_record = fetch_records()
+        records = recent_only(every_record)
         summaries = fetch_summaries()
         templates = fetch_templates()
         last_data_load = fetch_last_data_load()
@@ -327,6 +340,7 @@ def api_data():
     resp = Response(json.dumps({
         "records": records, "summaries": summaries, "templates": templates,
         "lastDataLoad": last_data_load, "reviews": reviews, "wordFrequency": word_frequency,
+        "vocRecords": voc_records(every_record),
     }, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
