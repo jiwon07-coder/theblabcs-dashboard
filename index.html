@@ -1957,11 +1957,11 @@ function renderVocSummary({ n, inCur, cur, prev }) {
   } else if (rising) {
     const top = vocDefectCombos(cur).find(x => x.minor === rising.m);
     lines.push(['--coral',
-      `<b>가장 늘어난 불량</b>: ${vocBtn('product', r => inCur(r) && isDefect(r) && r['소분류'] === rising.m, `최근 ${n}일 ${rising.m}`, rising.m)} - 직전 ${rising.p}건 → ${rising.c}건`,
+      `<b>전보다 늘어난 불량</b>: ${vocBtn('product', r => inCur(r) && isDefect(r) && r['소분류'] === rising.m, `최근 ${n}일 ${rising.m}`, rising.m)} - 직전 ${rising.p}건 → ${rising.c}건`,
       `전체 중 비중 ${vocFmtPct(vocPct(rising.p, prev.length))} → ${vocFmtPct(vocPct(rising.c, cur.length))}` +
         (top ? ` · 제품별로는 ${vocProductLabel(top.p)}가 ${top.c}건으로 가장 많아요` : '')]);
   } else {
-    lines.push(['--coral', '<b>가장 늘어난 불량</b>: 직전 기간보다 눈에 띄게 늘어난 불량은 없어요.', '']);
+    lines.push(['--coral', '<b>전보다 늘어난 불량</b>: 직전 기간보다 눈에 띄게 늘어난 불량은 없어요.', '']);
   }
 
   // 2) 제품 × 불량 조합 중 가장 많은 것 (동점이면 최대 3개)
@@ -1969,12 +1969,12 @@ function renderVocSummary({ n, inCur, cur, prev }) {
   if (combos.length) {
     const ties = combos.filter(x => x.c === combos[0].c).slice(0, 3);
     lines.push(['--amber',
-      `<b>제품별로 가장 많은 불량</b>: ${ties.map(x => vocBtn('product',
+      `<b>가장 많이 접수된 불량</b>: ${ties.map(x => vocBtn('product',
         r => inCur(r) && vocProd(r) === x.p && r['소분류'] === x.minor, `${vocProductLabel(x.p)} · ${x.minor}`,
         `${vocProductLabel(x.p)} · ${x.minor}`)).join(', ')} ${ties.length > 1 ? '각 ' : ''}${combos[0].c}건`,
       '제품 개선 화면의 Top 5에서 나머지도 볼 수 있어요']);
   } else {
-    lines.push(['--amber', '<b>제품별로 가장 많은 불량</b>: 이 기간엔 제품 불량 문의가 없어요.', '']);
+    lines.push(['--amber', '<b>가장 많이 접수된 불량</b>: 이 기간엔 제품 불량 문의가 없어요.', '']);
   }
 
   // 3) 안내로 막을 수 있는 문의 중 가장 많은 것
@@ -1982,10 +1982,10 @@ function renderVocSummary({ n, inCur, cur, prev }) {
     .sort((a, b) => b.c - a.c)[0];
   if (prevTop && prevTop.c) {
     lines.push(['--good',
-      `<b>가장 줄이기 쉬운 문의</b>: ${vocBtn('cs', r => inCur(r) && isPreventable(r) && r['소분류'] === prevTop.m, `최근 ${n}일 ${prevTop.m}`, prevTop.m)} - ${prevTop.c}건, 전체의 ${vocFmtPct(vocPct(prevTop.c, cur.length))}`,
+      `<b>안내만 잘해도 줄일 수 있는 문의 1위</b>: ${vocBtn('cs', r => inCur(r) && isPreventable(r) && r['소분류'] === prevTop.m, `최근 ${n}일 ${prevTop.m}`, prevTop.m)} - ${prevTop.c}건, 전체의 ${vocFmtPct(vocPct(prevTop.c, cur.length))}`,
       `→ ${PREVENT_ACTIONS[prevTop.m]} (제안)`]);
   } else {
-    lines.push(['--good', '<b>가장 줄이기 쉬운 문의</b>: 이 기간엔 해당하는 문의가 없어요.', '']);
+    lines.push(['--good', '<b>안내만 잘해도 줄일 수 있는 문의 1위</b>: 이 기간엔 해당하는 문의가 없어요.', '']);
   }
 
   document.getElementById('vocSummary').innerHTML = lines.map(([color, main, sub]) => `
