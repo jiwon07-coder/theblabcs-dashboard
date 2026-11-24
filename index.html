@@ -1353,7 +1353,8 @@ function renderHome() {
   const staleCutoffDate = new Date();
   staleCutoffDate.setDate(staleCutoffDate.getDate() - 2);
   const staleCutoff = staleCutoffDate.toISOString().slice(0, 10);
-  const stale = pending.filter(r => (r['날짜']||'') < staleCutoff)
+  // '확인 필요' = 채널에서 사라진(삭제·스팸) 글이라 처리할 대상이 아님 - 위 '확인 필요' 카드에서 따로 셈
+  const stale = pending.filter(r => r['처리상태'] !== '확인 필요' && (r['날짜']||'') < staleCutoff)
     .sort((a,b) => (a['날짜']||'').localeCompare(b['날짜']||''));
 
   if (!stale.length) {
