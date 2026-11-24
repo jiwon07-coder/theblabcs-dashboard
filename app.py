@@ -72,6 +72,10 @@ def normalize_product(text):
         return "몰입의 시간"
     if "케이블" in text:
         return "오리지널 케이블"
+    # 카페24 상품 366 "더비랩 몰입의방"(2023 첫 등록, 자체코드 "몰입의 방1")은 모델명 없이
+    # 등록된 1세대 오리지널 - 사용자 확인(2026-11-24). 이름 전체가 정확히 이 형태일 때만.
+    if re.fullmatch(r"\s*(더비랩\s*)?몰입의\s*방\s*", text):
+        return "오리지널"
     m = re.search(r"몰입의\s*방\s*(오리지널\s*V2|오리지널|프로|미니)", text)
     if not m:
         return "미분류"
