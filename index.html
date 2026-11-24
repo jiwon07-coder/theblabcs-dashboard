@@ -266,6 +266,28 @@
   .voc-drill:empty{display:none;}
   .voc-drill{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);}
   .voc-trend-pt{cursor:pointer;}
+  /* 개선 효과 추적 */
+  .modal-body input[type="date"]{width:100%;font-family:'Inter','Pretendard',sans-serif;font-size:13px;padding:9px 12px;
+    border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
+  .act-minors{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;background:var(--paper);}
+  .act-minors .act-group{font-size:11px;color:var(--slate);margin-top:4px;}
+  .act-minors label{display:flex !important;align-items:center;gap:8px;margin:0 !important;font-weight:400 !important;font-size:13px !important;cursor:pointer;}
+  .act-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:14px;}
+  .act-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .act-title{font-weight:600;font-size:14.5px;}
+  .act-target{font-size:12px;color:var(--slate);margin-top:4px;line-height:1.5;}
+  .act-badge{font-family:'IBM Plex Mono','Pretendard',monospace;font-size:11px;padding:3px 10px;border-radius:999px;
+    background:rgba(232,163,61,0.16);color:#9A6A1E;white-space:nowrap;}
+  .act-badge.done{background:rgba(20,23,31,0.06);color:var(--slate);}
+  .act-verdict{margin:14px 0 12px;padding:10px 14px;border-radius:10px;background:var(--paper);font-size:14px;line-height:1.55;}
+  .act-verdict b.better{color:var(--good);} .act-verdict b.worse{color:var(--coral);} .act-verdict b.flat{color:var(--slate);}
+  .act-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:600px){.act-compare{grid-template-columns:1fr;}}
+  .act-side{border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+  .act-side-label{font-size:11.5px;color:var(--slate);margin-bottom:6px;}
+  .act-side .voc-big{font-size:22px;}
+  .act-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;}
 
   .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
   .panel-head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
@@ -779,6 +801,7 @@
         <div class="voc-seg" id="vocViewSwitch">
           <button class="active" data-view="product">제품 개선</button>
           <button data-view="cs">CS 줄이기</button>
+          <button data-view="action">개선 효과</button>
         </div>
       </div>
 
@@ -826,6 +849,22 @@
           <p class="sub">이 선이 내려가면 안내가 효과를 내고 있다는 뜻이에요. 점을 누르면 그 달 원문을 볼 수 있어요. 이번 달(*)은 아직 진행 중이에요.</p>
           <div id="vocTrend-cs"></div>
         </div>
+      </div>
+
+      <!-- 화면 3: 개선 효과 - 상세페이지 수정 같은 조치 전후로 대상 문의가 줄었는지 -->
+      <div id="vocView-action" style="display:none;">
+        <div class="panel section">
+          <div class="panel-head-row">
+            <div>
+              <h3>개선 효과 추적</h3>
+              <p class="sub" style="margin:0;">문의를 줄이려고 바꾼 것을 등록하면, 적용일 전후로 대상 문의가 줄었는지 비교해요.</p>
+            </div>
+            <button class="mark-seen-btn" id="openActionBtn">+ 개선 조치 등록</button>
+          </div>
+          <div id="vocActions"></div>
+          <div class="voc-drill" id="vocDrill-action"></div>
+        </div>
+        <p class="voc-note" style="margin-bottom:14px;">비교 방법: 적용 전 같은 기간과 적용 후를 그 제품 문의 중 비중으로 비교해요(제품이 '전체'면 전체 문의 중 비중). 판매량이나 채팅 기록이 늘어도 공정하게 보려는 거예요. 측정 기간이 절반 넘게 지나야 판단을 보여줘요.</p>
       </div>
 
       <p class="voc-note" id="vocFootnote"></p>
@@ -988,6 +1027,36 @@
 
 <div class="chart-tt" id="chartTooltip"></div>
 
+<div class="modal-overlay" id="actionOverlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>개선 조치 등록</h3>
+      <button class="link-btn" id="closeActionBtn">닫기 ✕</button>
+    </div>
+    <div class="modal-body">
+      <label>무엇을 바꿨나요?</label>
+      <input type="text" id="actTitle" placeholder="예: 미니 상세페이지에 고속충전 불가·일반 충전기 사용 안내 추가">
+      <label>적용일 <span class="chip">이 날부터 효과를 재요</span></label>
+      <input type="date" id="actDate">
+      <label>제품</label>
+      <select id="actProduct"></select>
+      <label>줄이고 싶은 문의 유형 <span class="chip">여러 개 선택 가능</span></label>
+      <div class="act-minors" id="actMinors"></div>
+      <label>원문 키워드 (선택) <span class="chip">쉼표로 구분 · 분류가 달라도 원문에 이 단어가 있으면 포함</span></label>
+      <input type="text" id="actKeywords" placeholder="예: 충전, 고속">
+      <label>측정 기간</label>
+      <select id="actPeriod">
+        <option value="14">2주</option><option value="30" selected>한 달 (30일)</option>
+        <option value="60">두 달 (60일)</option><option value="90">세 달 (90일)</option>
+      </select>
+      <label>메모 (선택)</label>
+      <input type="text" id="actMemo" placeholder="예: 스마트스토어 상세페이지 상단 배너">
+      <p id="actError" class="modal-error" style="display:none;"></p>
+      <button class="mark-seen-btn" id="submitActionBtn" style="width:100%;margin-top:12px;">등록</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="chatLogOverlay" style="display:none;">
   <div class="modal-box">
     <div class="modal-head">
@@ -1149,6 +1218,7 @@ async function loadData(pw) {
     REVIEWS = payload.reviews || [];
     WORD_FREQUENCY = payload.wordFrequency || {'부모': [], '학생 본인': []};
     VOC_DATA = payload.vocRecords || [];
+    VOC_ACTIONS = payload.vocActions || [];
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString('ko-KR');
     document.getElementById('lastDataLoad').textContent = payload.lastDataLoad || '알 수 없음';
     document.getElementById('totalCount').textContent = allData.length;
@@ -1857,6 +1927,7 @@ function renderVoc() {
   renderVocCs(P);
   renderVocTrend('product', isDefect, '제품 불량', rootCssVar('--coral'));
   renderVocTrend('cs', isPreventable, '안내로 막을 수 있는 문의', rootCssVar('--amber'));
+  renderVocActions();
   const excluded = VOC_DATA.filter(r => r['처리상태'] === '확인 필요').length;
   document.getElementById('vocFootnote').textContent =
     `집계 제외: 채널에서 사라진 '확인 필요' 문의 ${excluded}건(삭제된 글·스팸 등). 판매량 데이터가 없어서 불량률이 아니라 문의 건수 기준이에요.`;
@@ -2073,7 +2144,9 @@ function renderVocTrend(key, pred, label, color) {
 
 // ----- 화면 전환 / 원문 목록 -----
 function applyVocView() {
-  ['product', 'cs'].forEach(v => { document.getElementById('vocView-' + v).style.display = v === vocView ? '' : 'none'; });
+  ['product', 'cs', 'action'].forEach(v => { document.getElementById('vocView-' + v).style.display = v === vocView ? '' : 'none'; });
+  // 개선 효과 화면은 조치마다 자기 측정 기간이 있어서 상단 기간 선택이 의미 없음
+  document.getElementById('fVocPeriod').style.visibility = vocView === 'action' ? 'hidden' : '';
   document.querySelectorAll('#vocViewSwitch button').forEach(b => b.classList.toggle('active', b.dataset.view === vocView));
 }
 function showVocDrill(h) {
@@ -2110,6 +2183,210 @@ document.getElementById('tab-voc').addEventListener('click', (e) => {
   if (btn && vocHandlers[btn.dataset.vocId]) showVocDrill(vocHandlers[btn.dataset.vocId]);
 });
 document.getElementById('fVocPeriod').addEventListener('change', () => { closeVocDrill(); renderVoc(); });
+
+// ----- 화면 3: 개선 효과 추적 -----
+// 조치(구글시트 "개선조치" 탭)마다: 적용 전 N일 vs 적용 후(최대 N일)의 대상 문의를 "그 제품 문의 중 비중"으로
+// 비교. 제품 문의 전체로 나누는 이유 - 판매량·채팅 기록이 늘어 문의가 전반적으로 늘어도 공정하게 보려고.
+// 판단은 측정 기간이 절반 넘게 지나야 보여주고, 비중이 30% 이상 변해야 늘었다/줄었다고 함(그 미만은 비슷해요).
+let VOC_ACTIONS = [];
+const vocDay = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+const vocDayStr = (n) => new Date(n * 86400000).toISOString().slice(0, 10);
+const vocMd = (n) => { const s = vocDayStr(n); return `${+s.slice(5, 7)}/${+s.slice(8, 10)}`; };
+const vocSplit = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
+
+function vocActionEval(a) {
+  const start = vocDay(a['적용일']), N = Number(a['측정기간']) || 30, today = vocDay(vocDaysAgo(0));
+  const elapsed = Math.max(0, Math.min(N, today - start + 1));
+  const minors = vocSplit(a['대상소분류']), kws = vocSplit(a['키워드']);
+  const prod = a['제품'] || '전체';
+  const inScope = (r) => prod === '전체' || vocProd(r) === prod;
+  const isTarget = (r) => inScope(r) && (minors.includes(r['소분류']) || kws.some(k => (r['고객문의'] || '').includes(k)));
+  const base = vocBase().filter(inScope);
+  const dOf = (r) => vocDay(r['날짜']);
+  const before = base.filter(r => dOf(r) >= start - N && dOf(r) < start);
+  const after = base.filter(r => dOf(r) >= start && dOf(r) < start + elapsed);
+  const bT = before.filter(isTarget), aT = after.filter(isTarget);
+  return { start, N, today, elapsed, minors, kws, prod, isTarget, dOf, before, after, bT, aT,
+    bShare: vocPct(bT.length, before.length), aShare: vocPct(aT.length, after.length) };
+}
+
+function vocActionVerdict(e) {
+  const scope = e.prod === '전체' ? '전체' : e.prod;
+  if (e.elapsed === 0) return `<b class="flat">아직 적용 전이에요</b> · ${vocMd(e.start)}부터 측정을 시작해요.`;
+  if (e.elapsed < e.N / 2) {
+    return `<b class="flat">측정 중이에요</b> · ${e.elapsed}일째 / ${e.N}일. 지금까지 대상 문의 ${e.aT.length}건이에요. ` +
+      `${Math.ceil(e.N / 2)}일이 지나면 판단을 보여드려요.`;
+  }
+  if (!e.bT.length) return `적용 전 ${e.N}일에도 대상 문의가 없어서 줄었는지 판단할 수 없어요.`;
+  const rel = e.after.length ? (e.aShare - e.bShare) / e.bShare : -1;
+  const [cls, word] = rel <= -0.3 ? ['better', '줄었어요'] : rel >= 0.3 ? ['worse', '늘었어요'] : ['flat', '비슷해요'];
+  let s = `${scope} 문의 중 대상 문의 비중이 ${vocFmtPct(e.bShare)} → ${vocFmtPct(e.aShare)}로 <b class="${cls}">${word}</b>`;
+  s += e.elapsed < e.N ? ` <span class="voc-note">(${e.elapsed}일째 중간 결과)</span>` : '.';
+  if (e.bT.length + e.aT.length < 10) {
+    s += `<br><span class="voc-note">다만 건수가 적어서(전 ${e.bT.length}건 · 후 ${e.aT.length}건) 1~2건 차이는 우연일 수 있어요. 기간이 끝난 뒤에도 같은 흐름인지 함께 보세요.</span>`;
+  }
+  return s;
+}
+
+// 주 단위 막대: 적용 전 주들(회색) | 적용 후 주들(초록), 아직 안 온 주는 점선
+function vocActionWeeks(a, e, width) {
+  const weeks = Math.ceil(e.N / 7);
+  const W = Math.max(280, width || 640), H = 130, padB = 22, padT = 16, slot = W / (weeks * 2), bw = Math.min(30, slot * 0.6);
+  const all = vocBase();
+  const counts = [];
+  for (let k = -weeks; k < weeks; k++) {
+    const from = e.start + k * 7, to = from + 7;
+    const future = from > e.today;
+    counts.push({ k, from, to, future, partial: !future && to - 1 > e.today,
+      c: future ? 0 : all.filter(r => e.dOf(r) >= from && e.dOf(r) < to && e.isTarget(r)).length });
+  }
+  const max = Math.max(3, ...counts.map(x => x.c));
+  const svg = svgEl('svg', { width: '100%', height: H, viewBox: `0 0 ${W} ${H}` });
+  const midX = weeks * slot;
+  svg.appendChild(svgEl('line', { x1: midX, x2: midX, y1: 4, y2: H - padB + 4, style: 'stroke:var(--ink);stroke-dasharray:3 3' }));
+  const lab = svgEl('text', { x: midX + 6, y: 12, 'font-size': 11, fill: 'currentColor' }); lab.textContent = `적용 ${vocMd(e.start)}`; svg.appendChild(lab);
+  counts.forEach((x, i) => {
+    const cx = i * slot + slot / 2, h = (H - padB - padT) * x.c / max, y = H - padB - h;
+    if (x.future) {
+      svg.appendChild(svgEl('rect', { x: cx - bw / 2, y: H - padB - 10, width: bw, height: 10, rx: 3, fill: 'none', style: 'stroke:var(--line);stroke-dasharray:2 2' }));
+      return;
+    }
+    const rect = svgEl('rect', { x: cx - bw / 2, y: x.c ? y : H - padB - 2, width: bw, height: x.c ? h : 2, rx: 3,
+      fill: x.k < 0 ? rootCssVar('--slate') : rootCssVar('--good'), opacity: x.k < 0 ? 0.45 : 0.9, class: 'voc-trend-pt' });
+    const label = `${vocMd(x.from)}~${vocMd(Math.min(x.to - 1, e.today))} 대상 문의`;
+    rect.addEventListener('mouseenter', ev => showTip(ev, `<b>${label}</b><br>${x.c}건${x.partial ? ' (진행 중인 주)' : ''}`));
+    rect.addEventListener('mousemove', moveTip); rect.addEventListener('mouseleave', hideTip);
+    rect.addEventListener('click', () => { hideTip(); showVocDrill({ key: 'action', label: `${a['제목']} · ${label}`,
+      fn: r => e.dOf(r) >= x.from && e.dOf(r) < x.to && e.isTarget(r) }); });
+    svg.appendChild(rect);
+    const t = svgEl('text', { x: cx, y: (x.c ? y : H - padB - 2) - 4, 'font-size': 10.5, 'text-anchor': 'middle', fill: 'currentColor' });
+    t.textContent = x.c; svg.appendChild(t);
+  });
+  [['적용 전 (주별)', midX / 2], ['적용 후 (주별)', midX + midX / 2]].forEach(([txt, x]) => {
+    const t = svgEl('text', { x, y: H - 5, 'font-size': 11, 'text-anchor': 'middle', class: 'prod-label' }); t.textContent = txt; svg.appendChild(t);
+  });
+  return svg;
+}
+
+function renderVocActions() {
+  const box = document.getElementById('vocActions');
+  if (!VOC_ACTIONS.length) {
+    box.innerHTML = `<p class="empty-state">아직 등록된 개선 조치가 없어요. 상세페이지·설명서·안내 문구를 바꿨다면 등록해보세요.</p>`;
+    return;
+  }
+  const list = VOC_ACTIONS.slice().sort((x, y) => (y['적용일'] || '').localeCompare(x['적용일'] || ''));
+  box.innerHTML = '';
+  list.forEach(a => {
+    const e = vocActionEval(a);
+    const done = e.elapsed >= e.N;
+    const target = [e.minors.join(', '), e.kws.length ? `원문에 '${e.kws.join("', '")}' 포함` : ''].filter(Boolean).join(' 또는 ');
+    const scope = e.prod === '전체' ? '전체' : e.prod;
+    const side = (lbl, from, to, rows, tRows, share, key) => `
+      <div class="act-side">
+        <div class="act-side-label">${lbl} · ${vocMd(from)}~${vocMd(to)}</div>
+        <div><span class="voc-big">${vocBtn('action', key, `${a['제목']} · ${lbl}`, tRows.length + '건')}</span>
+          <span class="voc-note">${scope} 문의 ${rows.length}건 중 ${vocFmtPct(share)}</span></div>
+      </div>`;
+    const card = document.createElement('div');
+    card.className = 'act-card';
+    card.innerHTML = `
+      <div class="act-card-head">
+        <div>
+          <div class="act-title">${escapeHtml(a['제목'])}</div>
+          <div class="act-target">${escapeHtml(scope)} · ${escapeHtml(target)}${a['메모'] ? ` · ${escapeHtml(a['메모'])}` : ''}</div>
+        </div>
+        <span class="act-badge ${done ? 'done' : ''}">${done ? '측정 끝' : e.elapsed ? `측정 중 ${e.elapsed}/${e.N}일` : '적용 전'}</span>
+      </div>
+      <div class="act-verdict">${vocActionVerdict(e)}</div>
+      <div class="act-compare">
+        ${side(`적용 전 ${e.N}일`, e.start - e.N, e.start - 1, e.before, e.bT, e.bShare,
+          r => e.dOf(r) >= e.start - e.N && e.dOf(r) < e.start && e.isTarget(r))}
+        ${e.elapsed ? side(`적용 후 ${e.elapsed}일${done ? '' : '째'}`, e.start, e.start + e.elapsed - 1, e.after, e.aT, e.aShare,
+          r => e.dOf(r) >= e.start && e.dOf(r) < e.start + e.elapsed && e.isTarget(r))
+          : `<div class="act-side"><div class="act-side-label">적용 후</div><span class="voc-note">아직 데이터가 없어요</span></div>`}
+      </div>
+      <div class="act-weeks" style="margin-top:12px;"></div>
+      <div class="act-foot">
+        <span class="voc-note">적용일 ${a['적용일']} · 측정 ${e.N}일 (${vocMd(e.start + e.N - 1)}까지) · 등록 ${a['등록일'] || ''}</span>
+        <button class="link-btn" data-act-delete="${escapeAttr(a['조치ID'])}">삭제</button>
+      </div>`;
+    box.appendChild(card);
+    // 카드가 화면에 붙은 뒤 실제 폭을 재서 그려야 좁은 화면에서 글자가 작아지지 않음
+    const weeksBox = card.querySelector('.act-weeks');
+    weeksBox.appendChild(vocActionWeeks(a, e, weeksBox.clientWidth));
+  });
+}
+
+const actionOverlay = document.getElementById('actionOverlay');
+function openActionForm() {
+  document.getElementById('actTitle').value = '';
+  document.getElementById('actDate').value = vocDaysAgo(0);
+  document.getElementById('actProduct').innerHTML = ['전체', ...PRODUCT_OPTIONS.filter(p => p !== '미분류')]
+    .map(p => `<option value="${p}">${p}</option>`).join('');
+  const groups = {};
+  TAXONOMY.forEach(([major, minor]) => { (groups[major] = groups[major] || []).push(minor); });
+  document.getElementById('actMinors').innerHTML = Object.entries(groups).map(([major, minors]) =>
+    `<div class="act-group">${major}</div>` + minors.map(m =>
+      `<label><input type="checkbox" value="${escapeAttr(m)}"> ${m}</label>`).join('')).join('');
+  document.getElementById('actKeywords').value = '';
+  document.getElementById('actMemo').value = '';
+  document.getElementById('actPeriod').value = '30';
+  document.getElementById('actError').style.display = 'none';
+  actionOverlay.style.display = 'flex';
+}
+function closeActionForm() { actionOverlay.style.display = 'none'; }
+document.getElementById('openActionBtn').addEventListener('click', openActionForm);
+document.getElementById('closeActionBtn').addEventListener('click', closeActionForm);
+actionOverlay.addEventListener('click', (e) => { if (e.target === actionOverlay) closeActionForm(); });
+document.getElementById('submitActionBtn').addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget, errEl = document.getElementById('actError');
+  errEl.style.display = 'none';
+  const body = {
+    '제목': document.getElementById('actTitle').value,
+    '적용일': document.getElementById('actDate').value,
+    '제품': document.getElementById('actProduct').value,
+    '대상소분류': [...document.querySelectorAll('#actMinors input:checked')].map(x => x.value),
+    '키워드': document.getElementById('actKeywords').value,
+    '측정기간': document.getElementById('actPeriod').value,
+    '메모': document.getElementById('actMemo').value,
+  };
+  btn.disabled = true; btn.textContent = '등록 중...';
+  try {
+    const res = await fetch('/api/voc-action', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '등록에 실패했어요.');
+    VOC_ACTIONS.push(data.action);
+    closeActionForm();
+    renderVoc();
+  } catch (e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = '등록';
+  }
+});
+document.getElementById('vocActions').addEventListener('click', async (ev) => {
+  const del = ev.target.closest('[data-act-delete]');
+  if (!del) return;
+  const id = del.dataset.actDelete;
+  const a = VOC_ACTIONS.find(x => x['조치ID'] === id);
+  if (!confirm(`'${a ? a['제목'] : id}' 조치를 삭제할까요? 구글시트 "개선조치" 탭에서도 지워져요.`)) return;
+  del.disabled = true;
+  try {
+    const res = await fetch('/api/voc-action-delete', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Password': sessionStorage.getItem('cs_dashboard_pw') || '' },
+      body: JSON.stringify({ '조치ID': id }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '삭제에 실패했어요.');
+    VOC_ACTIONS = VOC_ACTIONS.filter(x => x['조치ID'] !== id);
+    if (vocDrill && vocDrill.key === 'action') closeVocDrill();
+    renderVoc();
+  } catch (e) {
+    alert(e.message);
+    del.disabled = false;
+  }
+});
 
 // 주간 분석 막대그래프 드릴다운에서 쓰는 문의 표. 제품/소분류만 바로 수정할 수 있음
 // (문제유형은 소분류에 따라 자동으로 따라감 - /api/update-inquiry 참고).

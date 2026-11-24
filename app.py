@@ -334,13 +334,14 @@ def api_data():
         last_data_load = fetch_last_data_load()
         reviews = fetch_reviews()
         word_frequency = fetch_word_frequency()
+        voc_actions = fetch_voc_actions()
     except Exception as e:
         return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
 
     resp = Response(json.dumps({
         "records": records, "summaries": summaries, "templates": templates,
         "lastDataLoad": last_data_load, "reviews": reviews, "wordFrequency": word_frequency,
-        "vocRecords": voc_records(every_record),
+        "vocRecords": voc_records(every_record), "vocActions": voc_actions,
     }, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
@@ -470,6 +471,99 @@ def api_log_chat():
     resp = Response(json.dumps({"ok": True, "id": chat_id}, ensure_ascii=False), mimetype="application/json")
     resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+# ===== VOC 개선 조치 추적 =====
+# "상세페이지에 고속충전 불가 안내 추가"처럼 문의를 줄이려고 한 조치를 등록해두고, VOC 탭
+# "개선 효과" 화면이 적용일 전후의 대상 문의를 비교함. 팀이 같이 보는 기록이라 브라우저가
+# 아니라 구글시트 "개선조치" 탭에 저장(없으면 자동 생성). 대상소분류/키워드는 쉼표 구분.
+ACTION_TAB = "개선조치"
+ACTION_HEADERS = ["조치ID", "등록일", "적용일", "제목", "제품", "대상소분류", "키워드", "측정기간", "메모"]
+
+
+def get_action_tab(spreadsheet, create=False):
+    try:
+        return spreadsheet.worksheet(ACTION_TAB)
+    except gspread.exceptions.WorksheetNotFound:
+        if not create:
+            return None
+        tab = spreadsheet.add_worksheet(title=ACTION_TAB, rows=200, cols=len(ACTION_HEADERS))
+        tab.append_row(ACTION_HEADERS)
+        return tab
+
+
+def fetch_voc_actions():
+    gc = get_gspread_client()
+    tab = get_action_tab(gc.open_by_key(os.environ["SHEET_ID"]))
+    if tab is None:
+        return []
+    values = tab.get_all_values()
+    if len(values) < 2:
+        return []
+    headers = values[0]
+    return [dict(zip(headers, row)) for row in values[1:] if row and row[0]]
+
+
+def check_password():
+    return request.headers.get("X-Dashboard-Password", "") == os.environ.get("DASHBOARD_PASSWORD")
+
+
+def json_response(payload, status=200):
+    resp = Response(json.dumps(payload, ensure_ascii=False), status=status, mimetype="application/json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/api/voc-action", methods=["POST"])
+def api_add_voc_action():
+    if not check_password():
+        return json_response({"error": "unauthorized"}, 401)
+    body = request.get_json(silent=True) or {}
+    title = (body.get("제목") or "").strip()
+    applied = body.get("적용일") or ""
+    product = body.get("제품") or "전체"
+    minors = [m for m in (body.get("대상소분류") or []) if m in MINOR_TO_MAJOR]
+    keywords = [k.strip() for k in (body.get("키워드") or "").split(",") if k.strip()]
+    try:
+        period = int(body.get("측정기간") or 30)
+    except ValueError:
+        period = 30
+    if not title:
+        return json_response({"error": "조치 내용을 적어주세요."}, 400)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", applied):
+        return json_response({"error": "적용일을 골라주세요."}, 400)
+    if not minors and not keywords:
+        return json_response({"error": "대상 문의 유형이나 키워드를 하나 이상 골라주세요."}, 400)
+    if period not in (14, 30, 60, 90):
+        period = 30
+    try:
+        gc = get_gspread_client()
+        tab = get_action_tab(gc.open_by_key(os.environ["SHEET_ID"]), create=True)
+        nums = [int(m.group(1)) for v in tab.col_values(1) if (m := re.fullmatch(r"ACT-(\d+)", v))]
+        action_id = f"ACT-{(max(nums) if nums else 0) + 1:04d}"
+        row = [action_id, datetime.now(KST).strftime("%Y-%m-%d"), applied, title, product,
+               ", ".join(minors), ", ".join(keywords), str(period), (body.get("메모") or "").strip()]
+        tab.append_row(row)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+    return json_response({"ok": True, "action": dict(zip(ACTION_HEADERS, row))})
+
+
+@app.route("/api/voc-action-delete", methods=["POST"])
+def api_delete_voc_action():
+    if not check_password():
+        return json_response({"error": "unauthorized"}, 401)
+    action_id = (request.get_json(silent=True) or {}).get("조치ID", "")
+    try:
+        gc = get_gspread_client()
+        tab = get_action_tab(gc.open_by_key(os.environ["SHEET_ID"]))
+        ids = tab.col_values(1) if tab else []
+        if action_id not in ids:
+            return json_response({"error": "해당 조치를 찾을 수 없어요."}, 404)
+        tab.delete_rows(ids.index(action_id) + 1)
+    except Exception as e:
+        return json_response({"error": str(e)}, 500)
+    return json_response({"ok": True})
 
 
 # CLASSIFY_RULES의 (대분류, 소분류, ...) 쌍에서 소분류→대분류 역매핑을 만듦(ai_classify.py의
